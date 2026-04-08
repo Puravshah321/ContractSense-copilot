@@ -1,0 +1,31 @@
+# Core ML + NLP
+transformers==4.40.0
+peft==0.10.0
+trl==0.8.6
+sentence-transformers
+
+# PyTorch
+# If you have CUDA, install a CUDA-specific torch build separately for best performance.
+torch
+torchvision
+
+# Retrieval / indexing
+faiss-cpu
+
+# Data + parsing
+datasets
+pymupdf
+pdfplumber
+
+# Serving + evaluation
+fastapi
+uvicorn[standard]
+ragas
+
+# Training/runtime helpers
+accelerate
+wandb
+python-dotenv
+numpy
+pandas
+scikit-learn
