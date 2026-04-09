@@ -34,9 +34,7 @@ Thumbs.db
 .env.*
 !.env.example
 
-# Large datasets and generated artifacts
-data/raw/
-data/processed/
+# Large model artifacts
 *.faiss
 *.index
 *.pkl
