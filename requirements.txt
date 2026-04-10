@@ -8,6 +8,8 @@ torch
 torchvision
 # Retrieval / indexing
 faiss-cpu
+qdrant-client
+rank-bm25
 # Data + parsing
 datasets
 pymupdf
