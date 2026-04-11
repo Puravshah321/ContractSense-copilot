@@ -1,15 +1,17 @@
+# ContractSense DPO Pipeline — Python Requirements
+# Install with: pip install -r requirements.txt
 # Core ML + NLP
 transformers==4.40.0
 peft==0.10.0
 trl==0.8.6
 sentence-transformers
 # PyTorch
-torch
+torch>=2.1.0
 torchvision
 # Retrieval / indexing
 faiss-cpu
 # Data + parsing
-datasets
+datasets>=2.18.0
 pymupdf
 pdfplumber
 # Serving + evaluation
@@ -17,9 +19,20 @@ fastapi
 uvicorn[standard]
 ragas
 # Training/runtime helpers
-accelerate
+accelerate>=0.28.0
 wandb
 python-dotenv
 numpy
 pandas
 scikit-learn
+
+# ── Quantization ───────────────────────────────
+bitsandbytes>=0.43.0     # 4-bit quantization (requires CUDA)
+
+# ── Evaluation + Visualization ─────────────────
+matplotlib>=3.8.0
+numpy>=1.26.0
+scikit-learn>=1.4.0      # optional: for additional metrics
+
+# ── Utilities ───────────────────────────────────
+tqdm>=4.66.0
