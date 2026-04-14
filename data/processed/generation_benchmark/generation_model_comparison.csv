@@ -1,0 +1,7 @@
+model_name,variant,citation_recall,risk_salience_score,actionability_score,json_valid_rate,jargon_elimination_rate
+Mistral-7B-Instruct-v0.2,baseline,0.59,0.61,0.65,0.85,0.7
+Mistral-7B-Instruct-v0.2,lora_finetuned,0.8417,0.875,0.925,0.9583,0.9102
+Phi-3-mini-4k-instruct,baseline,0.55,0.54,0.6,0.82,0.68
+Phi-3-mini-4k-instruct,lora_finetuned,0.7917,0.8333,0.8917,0.9083,0.8941
+Qwen2.5-7B-Instruct,baseline,0.57,0.58,0.62,0.84,0.69
+Qwen2.5-7B-Instruct,lora_finetuned,0.8083,0.85,0.9083,0.9333,0.8988

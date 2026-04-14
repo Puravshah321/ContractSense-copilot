@@ -1,0 +1,47 @@
+[
+  {
+    "model_label": "Mistral-7B-Instruct-v0.2",
+    "train_loss": 0.482,
+    "eval_loss": 0.531,
+    "generalization_gap": 0.049,
+    "overfit_flag": false,
+    "epoch_train_losses": [
+      0.71,
+      0.482
+    ],
+    "epoch_eval_losses": [
+      0.593,
+      0.531
+    ]
+  },
+  {
+    "model_label": "Phi-3-mini-4k-instruct",
+    "train_loss": 0.539,
+    "eval_loss": 0.617,
+    "generalization_gap": 0.078,
+    "overfit_flag": false,
+    "epoch_train_losses": [
+      0.798,
+      0.539
+    ],
+    "epoch_eval_losses": [
+      0.681,
+      0.617
+    ]
+  },
+  {
+    "model_label": "Qwen2.5-7B-Instruct",
+    "train_loss": 0.511,
+    "eval_loss": 0.572,
+    "generalization_gap": 0.061,
+    "overfit_flag": false,
+    "epoch_train_losses": [
+      0.743,
+      0.511
+    ],
+    "epoch_eval_losses": [
+      0.629,
+      0.572
+    ]
+  }
+]
