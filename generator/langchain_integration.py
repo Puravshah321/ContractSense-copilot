@@ -1,7 +1,7 @@
 # generator/langchain_integration.py
 """
-BM25 RETRIEVER WRAPPER FOR LANGCHAIN
-Wraps the existing BM25 retriever for LangChain integration
+LANGCHAIN INTEGRATION FOR CONTRACT SENSE
+Uses SaulLM-7B for legal contract analysis
 """
 
 import sys
@@ -12,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever as LangChainBM25
-from langchain_community.llms import HuggingFacePipeline
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -86,7 +85,7 @@ class LangChainRetriever:
 
 
 class ContractQAAnalyzer:
-    """Complete QA system using LangChain and BM25"""
+    """Complete QA system using LangChain and BM25 with SaulLM-7B"""
     
     def __init__(self):
         self.doc_processor = DocumentProcessor()
@@ -104,21 +103,42 @@ class ContractQAAnalyzer:
         self.retriever.initialize(documents)
         return True
     
-    def setup_llm(self, model_name: str = "microsoft/phi-2") -> bool:
-        """Setup language model for analysis"""
+    def setup_llm(self, model_name: str = "RichardErkhov/Equall_-_Saul-7B-Instruct-v1-4bits") -> bool:
+        """Setup SaulLM-7B language model for legal contract analysis"""
         print("\nSetting up language model...")
         
         try:
-            from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+            from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, BitsAndBytesConfig
+            from langchain_community.llms import HuggingFacePipeline
             import torch
             
-            # Load model
-            model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=True,
-                trust_remote_code=True,
-            )
+            # Check if GPU is available
+            if torch.cuda.is_available():
+                print(f"   GPU detected: {torch.cuda.get_device_name(0)}")
+                print(f"   GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+                
+                # 4-bit quantization for SaulLM-7B
+                bnb_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_use_double_quant=True,
+                )
+                
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    quantization_config=bnb_config,
+                    device_map="auto",
+                    trust_remote_code=True,
+                )
+            else:
+                print("   No GPU detected, using CPU mode (will be slow)")
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True,
+                    trust_remote_code=True,
+                )
             
             tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
             tokenizer.pad_token = tokenizer.eos_token
@@ -135,7 +155,7 @@ class ContractQAAnalyzer:
             )
             
             self.llm = HuggingFacePipeline(pipeline=pipe)
-            print(f"   LLM ready: {model_name}")
+            print(f"   LLM ready: SaulLM-7B (legal-specialized model)")
             return True
             
         except Exception as e:
@@ -145,7 +165,7 @@ class ContractQAAnalyzer:
     def create_prompt_template(self) -> None:
         """Create the prompt template for contract analysis"""
         
-        template = """You are a contract analyst. Use the clauses below to answer the question.
+        template = """You are ContractSense, a legal contract analyst specialized in contract review. Use the clauses below to answer the question.
 
 RELEVANT CLAUSES:
 {context}
@@ -223,7 +243,7 @@ Answer:"""
     def setup_complete(self) -> bool:
         """Complete setup of all components"""
         print("=" * 60)
-        print("Setting up Contract QA System")
+        print("Setting up Contract QA System with SaulLM-7B (Legal Specialized)")
         print("=" * 60)
         
         if not self.load_data():
@@ -242,7 +262,8 @@ Answer:"""
 # =========================================================
 if __name__ == "__main__":
     print("=" * 70)
-    print("CONTRACT QA SYSTEM WITH LANGCHAIN")
+    print("CONTRACT QA SYSTEM WITH LANGCHAIN AND SAULM-7B")
+    print("   Legal-specialized model for contract analysis")
     print("   Using BM25 retriever from existing codebase")
     print("=" * 70)
     
