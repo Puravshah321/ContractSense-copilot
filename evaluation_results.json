@@ -2,37 +2,37 @@
   {
     "decision": "REVIEW",
     "risk": "MEDIUM",
-    "explanation": "\ud83d\udccb MEDIUM RISK: This clause requires review: \"17.11.1 you have independently investigated the risks of operating the hotel under the brand, including current and potential\nmarket conditions and co...\" The purpose and implications are not immediately clear. Recommend legal review to understand full impact on your business. [Clause: train_00348_clause_211]",
+    "explanation": "MEDIUM RISK: This clause requires review: \"17.11.1 you have independently investigated the risks of operating the hotel under the brand, including current and potential\nmarket conditions and co...\" The purpose and implications are not immediately clear. Recommend legal review to understand full impact on your business. [Clause: train_00348_clause_211]",
     "citation": "train_00348_clause_211"
   },
   {
     "decision": "REVIEW",
     "risk": "MEDIUM",
-    "explanation": "\ud83d\udccb MEDIUM RISK: This clause requires review: \"1.2 it is agreed that such appointment is nonexclusive and ppg shanghai\nmay, without obligation to pay distributor any commission or other\ncompensatio...\" The purpose and implications are not immediately clear. Recommend legal review to understand full impact on your business. [Clause: train_00332_clause_002]",
+    "explanation": "MEDIUM RISK: This clause requires review: \"1.2 it is agreed that such appointment is nonexclusive and ppg shanghai\nmay, without obligation to pay distributor any commission or other\ncompensatio...\" The purpose and implications are not immediately clear. Recommend legal review to understand full impact on your business. [Clause: train_00332_clause_002]",
     "citation": "train_00332_clause_002"
   },
   {
     "decision": "REVIEW",
     "risk": "HIGH",
-    "explanation": "\u26a0\ufe0f HIGH RISK: This clause disclaims all warranties, meaning the vendor provides no guarantees about product/service quality, fitness for purpose, or non-infringement. This shifts significant risk to your company. Legal review strongly recommended. [Clause: train_00014_clause_021]",
+    "explanation": "HIGH RISK: This clause disclaims all warranties, meaning the vendor provides no guarantees about product/service quality, fitness for purpose, or non-infringement. This shifts significant risk to your company. Legal review strongly recommended. [Clause: train_00014_clause_021]",
     "citation": "train_00014_clause_021"
   },
   {
     "decision": "REVIEW",
     "risk": "MEDIUM",
-    "explanation": "\ud83d\udccb MEDIUM RISK: This confidentiality clause defines how sensitive information must be protected. Check the term length (should not exceed 5 years), exceptions for publicly available information, and required security measures. Standard but requires compliance. [Clause: train_00287_clause_075]",
+    "explanation": "MEDIUM RISK: This confidentiality clause defines how sensitive information must be protected. Check the term length (should not exceed 5 years), exceptions for publicly available information, and required security measures. Standard but requires compliance. [Clause: train_00287_clause_075]",
     "citation": "train_00287_clause_075"
   },
   {
     "decision": "REVIEW",
     "risk": "MEDIUM",
-    "explanation": "\ud83d\udccb MEDIUM RISK: This confidentiality clause defines how sensitive information must be protected. Check the term length (should not exceed 5 years), exceptions for publicly available information, and required security measures. Standard but requires compliance. [Clause: train_00287_clause_075]",
+    "explanation": "MEDIUM RISK: This confidentiality clause defines how sensitive information must be protected. Check the term length (should not exceed 5 years), exceptions for publicly available information, and required security measures. Standard but requires compliance. [Clause: train_00287_clause_075]",
     "citation": "train_00287_clause_075"
   },
   {
     "decision": "ACCEPT",
     "risk": "LOW",
-    "explanation": "\u2705 LOW RISK: This force majeure clause addresses delays caused by unforeseen events beyond either party's control (natural disasters, war, pandemic, etc.). This is standard protection for both parties. [Clause: train_00043_clause_021]",
+    "explanation": "LOW RISK: This force majeure clause addresses delays caused by unforeseen events beyond either party's control (natural disasters, war, pandemic, etc.). This is standard protection for both parties. [Clause: train_00043_clause_021]",
     "citation": "train_00043_clause_021"
   }
 ]

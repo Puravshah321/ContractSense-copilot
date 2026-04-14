@@ -25,7 +25,7 @@ class ContractOutput(BaseModel):
     
     explanation: str = Field(
         description="Plain English explanation with citations. Your model.py includes [Clause: id] format.",
-        example="⚠️ HIGH RISK: This indemnification clause transfers significant liability... [Clause: train_00348_clause_211]",
+        example="HIGH RISK: This indemnification clause transfers significant liability... [Clause: train_00348_clause_211]",
         max_length=500
     )
     
@@ -39,7 +39,7 @@ class ContractOutput(BaseModel):
 YOUR_MODEL_OUTPUT_EXAMPLE = {
     "decision": "REVIEW",
     "risk": "HIGH",
-    "explanation": "⚠️ HIGH RISK: This indemnification clause transfers significant legal and financial liability to your company. [Clause: train_00348_clause_211]",
+    "explanation": "HIGH RISK: This indemnification clause transfers significant legal and financial liability to your company. [Clause: train_00348_clause_211]",
     "citation": "train_00348_clause_211"
 }
 
@@ -54,24 +54,24 @@ def validate_output(output: dict) -> bool:
     # Check all keys exist
     for key in required_keys:
         if key not in output:
-            print(f"❌ Missing key: {key}")
+            print(f" Missing key: {key}")
             return False
     
     # Check decision values
     valid_decisions = ["ACCEPT", "REVIEW", "RENEGOTIATE", "ESCALATE"]
     if output["decision"].upper() not in valid_decisions:
-        print(f"❌ Invalid decision: {output['decision']}")
+        print(f" Invalid decision: {output['decision']}")
         return False
     
     # Check risk values
     valid_risks = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
     if output["risk"].upper() not in valid_risks:
-        print(f"❌ Invalid risk: {output['risk']}")
+        print(f" Invalid risk: {output['risk']}")
         return False
     
     # Check explanation has citation
     if "[Clause:" not in output["explanation"] and "Clause:" not in output["explanation"]:
-        print(f"⚠️ Warning: Explanation missing citation format")
+        print(f" Warning: Explanation missing citation format")
     
     return True
 

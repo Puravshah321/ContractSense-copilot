@@ -48,7 +48,7 @@ class SimpleLoRATrainer:
         
     def load_model(self):
         """Load model and tokenizer"""
-        print(f"🚀 Loading {self.model_name}...")
+        print(f"Loading {self.model_name}...")
         
         # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -80,7 +80,7 @@ class SimpleLoRATrainer:
         
         trainable = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         total = sum(p.numel() for p in self.model.parameters())
-        print(f"✅ Model ready! Trainable: {trainable:,} ({100*trainable/total:.2f}% of {total:,})")
+        print(f"Model ready! Trainable: {trainable:,} ({100*trainable/total:.2f}% of {total:,})")
         return True
     
     def prepare_dataset(self):
@@ -106,7 +106,7 @@ Clause: {ex['input']} [/INST]
             )
         
         tokenized = dataset.map(tokenize, batched=False)
-        print(f"✅ Dataset ready: {len(tokenized)} examples")
+        print(f"Dataset ready: {len(tokenized)} examples")
         return tokenized
     
     def train(self):
@@ -143,20 +143,20 @@ Clause: {ex['input']} [/INST]
             data_collator=data_collator,
         )
         
-        print("\n🚀 Starting training...")
+        print("\nStarting training...")
         trainer.train()
         
         # Save
         os.makedirs("./lora_adapters/final", exist_ok=True)
         self.model.save_pretrained("./lora_adapters/final")
         self.tokenizer.save_pretrained("./lora_adapters/final")
-        print("\n✅ Training complete! Saved to ./lora_adapters/final")
+        print("\nTraining complete! Saved to ./lora_adapters/final")
         return True
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🚀 MAHAK'S LoRA FINE-TUNING")
+    print("MAHAK'S LoRA FINE-TUNING")
     print("=" * 60)
     
     choice = input("Run LoRA training? (yes/no): ").lower()
