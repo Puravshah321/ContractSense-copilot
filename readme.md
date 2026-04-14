@@ -3,7 +3,7 @@
 
 > Read a long contract. Know the risk fast.
 
-ContractSense is an enterprise contract-analysis project for turning legal clauses into searchable, ranked, policy-aware, and plain-English outputs. The repo now covers five implemented stages: clause segmentation, dense embeddings, BM25 + cross-encoder reranking, DistilBERT tool-policy classification, and **Stage 6 generation** (LangChain + LangGraph, multi-model LoRA SFT with Mistral-7B as the selected generator).
+ContractSense is an enterprise contract-analysis project for turning legal clauses into searchable, ranked, policy-aware, and plain-English outputs. The repo now covers five implemented stages: clause segmentation, dense embeddings, BM25 + cross-encoder reranking, DistilBERT tool-policy classification, and **Stage 6 generation** (LangChain + LangGraph, multi-model LoRA SFT with **mistralai/Mistral-7B-Instruct-v0.2 + LoRA** as the selected generator).
 
 ## Table of Contents
 
@@ -161,7 +161,7 @@ Five stages are implemented; see section headings below for each.
 | Benchmarking | Retrieval and reranker comparison | [notebooks/03_reranker_and_model_comparison.ipynb](notebooks/03_reranker_and_model_comparison.ipynb) | [data/processed/comparison_outputs](data/processed/comparison_outputs) |
 | Tool policy | Four-way tool selection classifier | [src/policy/tool_policy_model.py](src/policy/tool_policy_model.py) | [data/processed/tool_policy_model](data/processed/tool_policy_model) |
 | Tool-policy benchmark | Grouped contract split and model comparison | [scripts/train_tool_policy_model.py](scripts/train_tool_policy_model.py) | [data/processed/tool_policy_benchmark_realistic_final/model_comparison.json](data/processed/tool_policy_benchmark_realistic_final/model_comparison.json) |
-| **Stage 6: Generation** | **LangChain + LangGraph + LoRA SFT — 3 models, 5 metrics, 13 plots** | [src/generation/](src/generation), [notebooks/05_generation_phase_langgraph.ipynb](notebooks/05_generation_phase_langgraph.ipynb) | [data/processed/generation_benchmark/best_generation_model.json](data/processed/generation_benchmark/best_generation_model.json) |
+| **Stage 6: Generation** | **LangChain + LangGraph + LoRA SFT — winner: mistralai/Mistral-7B-Instruct-v0.2 + LoRA** | [src/generation/](src/generation), [notebooks/05_generation_phase_langgraph.ipynb](notebooks/05_generation_phase_langgraph.ipynb) | [data/processed/generation_benchmark/best_generation_model.json](data/processed/generation_benchmark/best_generation_model.json), [data/processed/generation_benchmark/generation_best_model_summary.json](data/processed/generation_benchmark/generation_best_model_summary.json) |
 
 ## Models Used
 
@@ -173,7 +173,7 @@ These are the models that drive all repo outputs across all implemented stages:
 | Reranker | cross-encoder/ms-marco-MiniLM-L-6-v2 | Strong baseline cross-encoder for query-clause scoring |
 | Tool-policy baseline | distilbert-base-uncased | Best final tradeoff of speed and quality in the benchmark |
 | Tool-policy candidate | google/electra-small-discriminator | Lighter candidate compared against DistilBERT |
-| **Stage 6 generator (winner)** | **mistralai/Mistral-7B-Instruct-v0.2 + LoRA** | **Highest scores across all 5 metrics; meets all system targets** |
+| **Stage 6 generator (winner)** | **mistralai/Mistral-7B-Instruct-v0.2 + LoRA** | **Highest final score (0.8778) across the 120-sample holdout; beats the best baseline (0.8351) and meets all system targets** |
 | Stage 6 candidate | microsoft/Phi-3-mini-4k-instruct + LoRA | Compact 3.8B model; fits smaller GPUs (5 GB VRAM in 4-bit) |
 | Stage 6 candidate | Qwen/Qwen2.5-7B-Instruct + LoRA | Newer architecture; competitive on risk salience |
 
@@ -437,6 +437,24 @@ This branch implements Stage 6 generation with **LangChain + LangGraph** orchest
 and a full multi-model LoRA fine-tuning benchmark. Three transformer families are tested,
 each evaluated as a base model and as a LoRA-finetuned model on a 120-sample contract eval holdout.
 
+### Benchmark Verdict
+
+The winner is **mistralai/Mistral-7B-Instruct-v0.2 + LoRA**. It has the highest final score in the benchmark artifacts and is the model the README, notebook demo, and Stage 6 diagram should reference.
+
+| Item | Best Baseline | Best LoRA Winner |
+|---|---:|---:|
+| Model | Mistral-7B-Instruct-v0.2 | **Mistral-7B-Instruct-v0.2 + LoRA** |
+| Final score | 0.8351 | **0.8778** |
+| Citation recall | 0.8056 | **0.8417** |
+| Risk salience score | 0.8415 | **0.8750** |
+| Actionability score | 0.8862 | **0.9250** |
+| JSON valid rate | 0.8149 | **0.9583** |
+| Jargon elimination rate | 0.8405 | **0.9102** |
+| Generalization gap | — | **0.049** |
+| Overfit flag | — | **False** |
+
+Supporting files: [data/processed/generation_benchmark/best_generation_model.json](data/processed/generation_benchmark/best_generation_model.json), [data/processed/generation_benchmark/generation_best_model_summary.json](data/processed/generation_benchmark/generation_best_model_summary.json), [data/processed/generation_benchmark/generation_leaderboard.csv](data/processed/generation_benchmark/generation_leaderboard.csv)
+
 ---
 
 ### Stage 6 Architecture (LangGraph)
@@ -606,12 +624,12 @@ Ranked by final score (quality − overfitting penalty):
 
 | Rank | Model | Variant | Final Score | Citation Recall | Risk Salience | Gen. Gap | Overfit? |
 |---:|---|---|---:|---:|---:|---:|---|
-| 1 | **Mistral-7B-Instruct-v0.2** | **lora_finetuned** | **0.8747** | **0.8417** | **0.8750** | 0.049 | ✅ No |
-| 2 | Qwen2.5-7B-Instruct | lora_finetuned | 0.8488 | 0.8083 | 0.8500 | 0.061 | ✅ No |
-| 3 | Phi-3-mini-4k-instruct | lora_finetuned | 0.8234 | 0.7917 | 0.8333 | 0.078 | ✅ No |
-| 4 | Mistral-7B-Instruct-v0.2 | baseline | ~0.6100 | ~0.5900 | ~0.6130 | — | — |
-| 5 | Qwen2.5-7B-Instruct | baseline | ~0.5890 | ~0.5720 | ~0.5780 | — | — |
-| 6 | Phi-3-mini-4k-instruct | baseline | ~0.5620 | ~0.5480 | ~0.5450 | — | — |
+| 1 | **Mistral-7B-Instruct-v0.2** | **lora_finetuned** | **0.8778** | **0.8417** | **0.8750** | 0.049 | ✅ No |
+| 2 | Qwen2.5-7B-Instruct | lora_finetuned | 0.8511 | 0.8083 | 0.8500 | 0.061 | ✅ No |
+| 3 | Phi-3-mini-4k-instruct | lora_finetuned | 0.8323 | 0.7917 | 0.8333 | 0.078 | ✅ No |
+| 4 | Mistral-7B-Instruct-v0.2 | baseline | 0.8351 | 0.8056 | 0.8415 | — | — |
+| 5 | Qwen2.5-7B-Instruct | baseline | 0.8310 | 0.8215 | 0.8298 | — | — |
+| 6 | Phi-3-mini-4k-instruct | baseline | 0.7840 | 0.7739 | 0.7617 | — | — |
 
 ![Model Performance Leaderboard](data/processed/generation_benchmark/generation_model_leaderboard.png)
 
@@ -626,11 +644,12 @@ Ranked by final score (quality − overfitting penalty):
 **Selection rule:** Best non-overfit LoRA model by final score, which must outperform the best baseline model.
 
 **Why Mistral-7B wins:**
-1. Highest citation recall (0.8417) — meets the 0.81 system target from specs
-2. Highest risk salience (0.8750) — reliably mentions risk in the first sentence
-3. Smallest generalization gap among 7B models (0.049)
-4. Highest JSON structural validity (0.9583) — critical for downstream parsing
-5. Strong instruction-following from `Instruct` fine-tuning, which responds well to LoRA adaptation
+1. Highest final score on the 120-sample benchmark (0.8778 vs 0.8351 for the best baseline)
+2. Highest citation recall (0.8417) — meets the 0.81 system target from specs
+3. Highest risk salience (0.8750) — reliably mentions risk in the first sentence
+4. Smallest generalization gap among 7B models (0.049)
+5. Highest JSON structural validity (0.9583) — critical for downstream parsing
+6. Strong instruction-following from `Instruct` fine-tuning, which responds well to LoRA adaptation
 
 **Why not Phi-3-mini:** Lower absolute scores on citation and salience, despite being more compact.
 Acceptable trade-off for edge deployment but not the best for a quality-first production system.

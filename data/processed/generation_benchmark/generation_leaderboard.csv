@@ -1,7 +1,7 @@
-model_name,variant,citation_recall,risk_salience_score,actionability_score,json_valid_rate,jargon_elimination_rate,final_score
-Mistral-7B-Instruct-v0.2,lora_finetuned,0.8417,0.875,0.925,0.9583,0.9102,0.9020400000000001
-Qwen2.5-7B-Instruct,lora_finetuned,0.8083,0.85,0.9083,0.9333,0.8988,0.87974
-Phi-3-mini-4k-instruct,lora_finetuned,0.7917,0.8333,0.8917,0.9083,0.8941,0.8638200000000001
-Mistral-7B-Instruct-v0.2,baseline,0.59,0.61,0.65,0.85,0.7,0.68
-Qwen2.5-7B-Instruct,baseline,0.57,0.58,0.62,0.84,0.69,0.6599999999999999
-Phi-3-mini-4k-instruct,baseline,0.55,0.54,0.6,0.82,0.68,0.638
+base_model,model_name,variant,train_loss,eval_loss,generalization_gap,overfit_flag,json_valid_rate,citation_recall,risk_salience_score,actionability_score,jargon_elimination_rate,eval_cases,quality_score,final_score
+mistralai/Mistral-7B-Instruct-v0.2,Mistral-7B-Instruct-v0.2,lora_finetuned,0.482,0.531,0.049,False,0.9583,0.8417,0.875,0.925,0.9102,120.0,0.8852,0.8778
+Qwen/Qwen2.5-7B-Instruct,Qwen2.5-7B-Instruct,lora_finetuned,0.511,0.572,0.061,False,0.9333,0.8083,0.85,0.9083,0.8988,120.0,0.8603,0.8511
+mistralai/Mistral-7B-Instruct-v0.2,Mistral-7B-Instruct-v0.2,baseline,,,,False,0.8149,0.8056,0.8415,0.8862,0.8405,,0.8351,0.8351
+microsoft/Phi-3-mini-4k-instruct,Phi-3-mini-4k-instruct,lora_finetuned,0.539,0.617,0.078,False,0.9083,0.7917,0.8333,0.8917,0.8941,120.0,0.844,0.8323
+Qwen/Qwen2.5-7B-Instruct,Qwen2.5-7B-Instruct,baseline,,,,False,0.8352,0.8215,0.8298,0.8487,0.8274,,0.831,0.831
+microsoft/Phi-3-mini-4k-instruct,Phi-3-mini-4k-instruct,baseline,,,,False,0.8086,0.7739,0.7617,0.8033,0.8121,,0.784,0.784
