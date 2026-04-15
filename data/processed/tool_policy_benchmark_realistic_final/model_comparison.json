@@ -1,0 +1,32 @@
+{
+  "base_model": "distilbert-base-uncased",
+  "candidate_models": [
+    "google/electra-small-discriminator"
+  ],
+  "split_strategy": "group_contract",
+  "selection_metric": "f1_macro",
+  "best_model": "distilbert-base-uncased",
+  "best_model_path": "D:\\sem 2\\DL\\project\\ContractSense-copilot\\data\\processed\\tool_policy_benchmark_realistic_final\\distilbert_base_uncased",
+  "best_accuracy": 0.90625,
+  "best_f1_macro": 0.902834008097166,
+  "results": [
+    {
+      "model_name": "distilbert-base-uncased",
+      "model_path": "D:\\sem 2\\DL\\project\\ContractSense-copilot\\data\\processed\\tool_policy_benchmark_realistic_final\\distilbert_base_uncased",
+      "accuracy": 0.90625,
+      "f1_macro": 0.902834008097166,
+      "samples_train": 544.0,
+      "samples_eval": 96.0,
+      "is_base_model": true
+    },
+    {
+      "model_name": "google/electra-small-discriminator",
+      "model_path": "D:\\sem 2\\DL\\project\\ContractSense-copilot\\data\\processed\\tool_policy_benchmark_realistic_final\\google_electra_small_discriminator",
+      "accuracy": 0.4375,
+      "f1_macro": 0.3523953708691695,
+      "samples_train": 544.0,
+      "samples_eval": 96.0,
+      "is_base_model": false
+    }
+  ]
+}

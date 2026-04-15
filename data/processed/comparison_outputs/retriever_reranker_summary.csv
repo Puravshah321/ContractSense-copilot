@@ -1,0 +1,9 @@
+model,recall@5,mrr@5
+BM25 (no reranking baseline),0.86,0.86
+MiniLM cross-encoder (base),0.86,0.86
+MiniLM-L-6-v2 (baseline reranker),0.86,0.86
+MiniLM-L-12-v2,0.86,0.86
+Your fine-tuned reranker (risk-aware),0.86,0.86
+Fine-tuned MiniLM (your model),0.86,0.86
+BAAI/bge-reranker-large,0.86,0.85
+BAAI/bge-reranker-base,0.86,0.8466666666666666

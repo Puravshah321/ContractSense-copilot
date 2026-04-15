@@ -25,3 +25,10 @@ python-dotenv
 numpy
 pandas
 scikit-learn
+matplotlib
+
+# Stage 6 generation orchestration
+langchain
+langchain-community
+langgraph
+bitsandbytes
