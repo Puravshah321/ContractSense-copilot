@@ -10,6 +10,8 @@ torch>=2.1.0
 torchvision
 # Retrieval / indexing
 faiss-cpu
+qdrant-client
+rank-bm25
 # Data + parsing
 datasets>=2.18.0
 pymupdf
@@ -25,6 +27,7 @@ python-dotenv
 numpy
 pandas
 scikit-learn
+<<<<<<< HEAD
 
 # ── Quantization ───────────────────────────────
 bitsandbytes>=0.43.0     # 4-bit quantization (requires CUDA)
@@ -36,3 +39,12 @@ scikit-learn>=1.4.0      # optional: for additional metrics
 
 # ── Utilities ───────────────────────────────────
 tqdm>=4.66.0
+=======
+matplotlib
+
+# Stage 6 generation orchestration
+langchain
+langchain-community
+langgraph
+bitsandbytes
+>>>>>>> sanjana

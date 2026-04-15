@@ -1,0 +1,9 @@
+pipeline_stage,model,variant,params_m,latency_ms_est,best_for
+Retrieval baseline,BM25 (no reranking baseline),Sparse baseline,,0.2,Fast lexical retrieval baseline
+Reranking,MiniLM cross-encoder (base),cross-encoder/ms-marco-MiniLM-L-6-v2,22.0,22.0,Strong quality-speed tradeoff
+Reranking,MiniLM-L-6-v2 (baseline reranker),cross-encoder/ms-marco-MiniLM-L-6-v2,22.0,22.0,Reference baseline reranker
+Reranking,MiniLM-L-12-v2,cross-encoder/ms-marco-MiniLM-L-12-v2,33.0,32.0,"Higher accuracy, more latency"
+Reranking,BAAI/bge-reranker-base,BGE base reranker,109.0,35.0,Strong semantic reranking
+Reranking,BAAI/bge-reranker-large,BGE large reranker,335.0,55.0,Highest quality with heavier compute
+Reranking,Fine-tuned MiniLM (your model),Domain fine-tuned checkpoint,22.0,23.0,Domain-adapted relevance ranking
+Reranking,Your fine-tuned reranker (risk-aware) ⭐,Fine-tuned + risk boost,22.0,24.0,Best when risk-aware ranking is required

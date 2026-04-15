@@ -37,11 +37,13 @@ Thumbs.db
 # Large model artifacts
 *.faiss
 *.index
-*.pkl
 *.pt
 *.bin
 *.safetensors
 *.ckpt
+
+# Large data / generated artifacts (too big for git)
+data/processed/qdrant_local/
 
 # Logs
 *.log
