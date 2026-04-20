@@ -1,0 +1,37 @@
+[
+    {
+        "id": "annotated_001",
+        "prompt": "Clause: Either party may terminate this Agreement upon thirty (30) days written notice. Upon termination, all outstanding invoices become immediately due and payable.\n\nQuery: Can we terminate this contract early?",
+        "expected_output": "RISK: HIGH\n\nYou can exit with 30 days written notice, but all unpaid bills become due immediately.\n\nACTION: Clear all outstanding invoices before sending termination notice.\n\nCITATION: [CUAD_DOC_001, spans 2-33]",
+        "difficulty": "easy",
+        "notes": "Clear termination clause, straightforward risk assessment"
+    },
+    {
+        "id": "annotated_002",
+        "prompt": "Clause: Vendor shall indemnify, defend, and hold harmless Client from any third-party claims arising from Vendor's gross negligence or willful misconduct. Indemnification shall not apply to claims arising from Client's own actions or omissions.\n\nQuery: Who is responsible if someone sues us over the vendor's mistake?",
+        "expected_output": "RISK: MEDIUM\n\nThe vendor must defend and pay for lawsuits caused by their serious negligence. If the claim partly stems from your company's actions, the vendor is off the hook for that portion.\n\nACTION: Document all vendor actions carefully and segregate responsibilities before invoking indemnification.\n\nCITATION: [CUAD_DOC_002, spans 4-37]",
+        "difficulty": "medium",
+        "notes": "Requires understanding conditional indemnification"
+    },
+    {
+        "id": "annotated_003",
+        "prompt": "Clause: Vendor's total liability under this Agreement shall not exceed the total fees paid by Client in the twelve (12) months preceding the claim. In no event shall either party be liable for indirect, incidental, consequential, or punitive damages.\n\nQuery: What's the maximum we can recover if the vendor causes a major loss?",
+        "expected_output": "RISK: HIGH\n\nYou can only recover up to what you paid the vendor in the last 12 months. Lost profits and consequential damages are excluded.\n\nACTION: Calculate 12-month vendor spend vs potential exposure. Negotiate higher cap or require vendor insurance.\n\nCITATION: [CUAD_DOC_007, spans 19-57]",
+        "difficulty": "hard",
+        "notes": "Requires identifying liability cap AND damage exclusion as compound risk"
+    },
+    {
+        "id": "annotated_004",
+        "prompt": "Clause: This Agreement shall automatically renew for successive one (1) year periods unless either party provides written notice of non-renewal at least ninety (90) days prior to the end of the then-current term. Upon renewal, pricing may be adjusted by up to 5% at Vendor's discretion.\n\nQuery: Does this contract auto-renew and can the price change?",
+        "expected_output": "RISK: HIGH\n\nYes, auto-renews yearly unless you give 90 days notice. The vendor can increase prices up to 5% each renewal without your consent.\n\nACTION: Set calendar reminders 100 days before renewal. If renewing, negotiate price cap or lock terms.\n\nCITATION: [CUAD_DOC_011, spans 0-45]",
+        "difficulty": "hard",
+        "notes": "Compound clause: auto-renewal + discretionary pricing - tests multi-risk identification"
+    },
+    {
+        "id": "annotated_005",
+        "prompt": "Clause: Neither party shall be liable for failure to perform obligations under this Agreement due to causes beyond its reasonable control, including but not limited to acts of God, war, terrorism, pandemic, or government action.\n\nQuery: What happens if a natural disaster prevents the vendor from delivering?",
+        "expected_output": "RISK: MEDIUM\n\nThe vendor would not be liable for non-performance caused by natural disasters or other force majeure events. You cannot claim damages for such delays.\n\nACTION: Review force majeure scope - ensure pandemic/cyber events are covered. Add termination right if force majeure exceeds 60 days.\n\nCITATION: [CUAD_DOC_012, spans 0-40]",
+        "difficulty": "medium",
+        "notes": "Standard force majeure but tests whether model identifies remediation gap"
+    }
+]

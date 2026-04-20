@@ -1,0 +1,575 @@
+[
+  {
+    "index": 0,
+    "prompt": "Clause: Section 193.6 \u2014 Pricing Adjustment. Notwithstanding any other provision of this Agreement, the parties agree that pricing adjustment obligations herein shall remain in full force and effect. The Customer shall provide written notice prior to invoking rights under this section.\n\nQuery: Highli",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement in accordance with the contractual framework.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: Effectively, the pricing adjustment clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review clause terms carefully and consult legal counsel.\n\nCITATION: [CUAD_0030_C0080, spans 39062\u201339302]",
+    "metadata": {
+      "doc_id": "CUAD_0030_C0080",
+      "source": "augmented",
+      "risk_level": "LOW",
+      "aug_from": "CUAD_0030_C0080"
+    }
+  },
+  {
+    "index": 1,
+    "prompt": "Clause: Clause 375.8: Indemnification. The Provider represents and warrants that all indemnification obligations will be fulfilled in accordance with applicable law. Failure to comply may result in termination for cause with fourteen (14) days written notice notice.\n\nQuery: What should we be concern",
+    "baseline_rejected": "The indemnification provision as stated in the agreement outlines obligations relating to indemnification. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: MEDIUM\n\nSimply put, the indemnification clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Negotiate a more favourable indemnification provision if possible.\n\nCITATION: [CUAD_0575_C0091, spans 85\u2013307]",
+    "metadata": {
+      "doc_id": "CUAD_0575_C0091",
+      "source": "synthetic",
+      "clause_type": "Indemnification"
+    }
+  },
+  {
+    "index": 2,
+    "prompt": "Clause: Clause 432.3: Warranty. The Customer represents and warrants that all warranty obligations will be fulfilled in accordance with applicable law. Failure to comply may result in termination for cause with thirty (30) days notice notice.\n\nQuery: What actions should we take before signing?",
+    "baseline_rejected": "The warranty provision as stated in the agreement outlines obligations relating to warranty. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nSimply put, the warranty clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Brief your team on the warranty obligations and their implications.\n\nCITATION: [CUAD_0495_C0073, spans 156\u2013450]",
+    "metadata": {
+      "doc_id": "CUAD_0495_C0073",
+      "source": "synthetic",
+      "clause_type": "Warranty"
+    }
+  },
+  {
+    "index": 3,
+    "prompt": "Clause: Section 773.2 \u2014 Warranty. Notwithstanding any other provision of this Agreement, the parties agree that warranty obligations herein shall remain in full force and effect. The Licensee shall provide ninety (90) days notice prior to invoking rights under this section.\n\nQuery: What risks does t",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement notwithstanding any other provisions.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: The agreement states that, the warranty clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Negotiate more favourable clause provisions if possible.\n\nCITATION: [CUAD_0228_C0023, spans 11573\u201312200]",
+    "metadata": {
+      "doc_id": "CUAD_0228_C0023",
+      "source": "augmented",
+      "risk_level": "HIGH",
+      "aug_from": "CUAD_0228_C0023"
+    }
+  },
+  {
+    "index": 4,
+    "prompt": "Clause: Section 412.7 \u2014 Termination. Notwithstanding any other provision of this Agreement, the parties agree that termination obligations herein shall remain in full force and effect. The Vendor shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What are the ",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: The agreement states that, the termination clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the termination terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0412_C0079, spans 5869\u20136201]",
+    "metadata": {
+      "doc_id": "CUAD_0412_C0079",
+      "source": "generation_data",
+      "risk_level": "LOW"
+    }
+  },
+  {
+    "index": 5,
+    "prompt": "Clause: Section 548.1 \u2014 Force Majeure. Notwithstanding any other provision of this Agreement, the parties agree that force majeure obligations herein shall remain in full force and effect. The Customer shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What ar",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: Simply put, the force majeure clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the force majeure terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0548_C0020, spans 15357\u201315649]",
+    "metadata": {
+      "doc_id": "CUAD_0548_C0020",
+      "source": "generation_data",
+      "risk_level": "LOW"
+    }
+  },
+  {
+    "index": 6,
+    "prompt": "Clause: Section 452.9 \u2014 Confidentiality. Notwithstanding any other provision of this Agreement, the parties agree that confidentiality obligations herein shall remain in full force and effect. The Customer shall provide written notice prior to invoking rights under this section.\n\nQuery: What are the",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: This clause means, the confidentiality clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the confidentiality terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0452_C0027, spans 4165\u20134667]",
+    "metadata": {
+      "doc_id": "CUAD_0452_C0027",
+      "source": "generation_data",
+      "risk_level": "LOW"
+    }
+  },
+  {
+    "index": 7,
+    "prompt": "Clause: Section 20.4 \u2014 Indemnification. Notwithstanding any other provision of this Agreement, the parties agree that indemnification obligations herein shall remain in full force and effect. The Customer shall provide written notice prior to invoking rights under this section.\n\nQuery: What are the ",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: MEDIUM\n\nMEDIUM risk: This clause means, the indemnification clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the indemnification terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0020_C0076, spans 36401\u201336836]",
+    "metadata": {
+      "doc_id": "CUAD_0020_C0076",
+      "source": "generation_data",
+      "risk_level": "MEDIUM"
+    }
+  },
+  {
+    "index": 8,
+    "prompt": "Clause: 166.8. Termination. Each party shall observe termination requirements for the duration of this Agreement and for a period of 3 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: Does this clause favour ",
+    "baseline_rejected": "The termination provision as stated in the agreement outlines obligations relating to termination. The parties should be aware of the terms and conditions specified therein subject to the conditions specified.",
+    "chosen_dpo": "RISK: HIGH\n\nBreaking this down, the termination clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review termination terms carefully and consult legal counsel.\n\nCITATION: [CUAD_0416_C0024, spans 180\u2013604]",
+    "metadata": {
+      "doc_id": "CUAD_0416_C0024",
+      "source": "augmented",
+      "clause_type": "Termination",
+      "aug_from": "CUAD_0416_C0024"
+    }
+  },
+  {
+    "index": 9,
+    "prompt": "Clause: 556.1. Limitation of Liability. Each party shall observe limitation of liability requirements for the duration of this Agreement and for a period of 3 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: ",
+    "baseline_rejected": "The limitation of liability provision as stated in the agreement outlines obligations relating to limitation of liability. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nThe agreement states that, the limitation of liability clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Negotiate a more favourable limitation of liability provision if possible.\n\nCITATION: [CUAD_0305_C0005, spans 89\u2013630]",
+    "metadata": {
+      "doc_id": "CUAD_0305_C0005",
+      "source": "synthetic",
+      "clause_type": "Limitation of Liability"
+    }
+  },
+  {
+    "index": 10,
+    "prompt": "Clause: Article 456.2 (Intellectual Property). Subject to the terms herein, the licensee acknowledges the intellectual property provisions and agrees to comply. Breach of this section entitles the non-breaching party to seek remedies as described in Section 457.7.\n\nQuery: Does this clause favour one",
+    "baseline_rejected": "The intellectual property provision as stated in the agreement outlines obligations relating to intellectual property. The parties should be aware of the terms and conditions specified therein subject to the conditions specified.",
+    "chosen_dpo": "RISK: MEDIUM\n\nWhat this means for your business is, the intellectual property clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Assess your financial exposure under the intellectual property terms.\n\nCITATION: [CUAD_0308_C0021, spans 130\u2013344]",
+    "metadata": {
+      "doc_id": "CUAD_0308_C0021",
+      "source": "augmented",
+      "clause_type": "Intellectual Property",
+      "aug_from": "CUAD_0308_C0021"
+    }
+  },
+  {
+    "index": 11,
+    "prompt": "Clause: Section 426.9 \u2014 SLA. Notwithstanding any other provision of this Agreement, the parties agree that sla obligations herein shall remain in full force and effect. Customer shall provide sixty (60) days advance notice prior to invoking rights under this section.\n\nQuery: What are the financial i",
+    "baseline_rejected": "The sla provision as stated in the agreement outlines obligations relating to sla. The parties should be aware of the terms and conditions specified therein pursuant to the provisions herein.",
+    "chosen_dpo": "RISK: MEDIUM\n\nFrom a practical standpoint, the sla clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Document all activities related to sla obligations.\n\nCITATION: [CUAD_0586_C0067, spans 43\u2013214]",
+    "metadata": {
+      "doc_id": "CUAD_0586_C0067",
+      "source": "augmented",
+      "clause_type": "SLA",
+      "aug_from": "CUAD_0586_C0067"
+    }
+  },
+  {
+    "index": 12,
+    "prompt": "Clause: 227.2. Termination. Each party shall observe termination requirements for the duration of this Agreement and for a period of 2 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: Can we negotiate better ",
+    "baseline_rejected": "The termination provision as stated in the agreement outlines obligations relating to termination. The parties should be aware of the terms and conditions specified therein subject to the conditions specified.",
+    "chosen_dpo": "RISK: CRITICAL\n\nIn plain terms, the termination clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Negotiate more favourable termination provisions if possible.\n\nCITATION: [CUAD_0039_C0039, spans 24\u2013244]",
+    "metadata": {
+      "doc_id": "CUAD_0039_C0039",
+      "source": "augmented",
+      "clause_type": "Termination",
+      "aug_from": "CUAD_0039_C0039"
+    }
+  },
+  {
+    "index": 13,
+    "prompt": "Clause: Section 122.9 \u2014 Confidentiality. Notwithstanding any other provision of this Agreement, the parties agree that confidentiality obligations herein shall remain in full force and effect. Provider shall provide sixty (60) days advance notice prior to invoking rights under this section.\n\nQuery: ",
+    "baseline_rejected": "The confidentiality provision as stated in the agreement outlines obligations relating to confidentiality. The parties should be aware of the terms and conditions specified therein notwithstanding any other provisions.",
+    "chosen_dpo": "RISK: MEDIUM\n\nBreaking this down, the confidentiality clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Document all activities related to confidentiality obligations.\n\nCITATION: [CUAD_0549_C0046, spans 78\u2013415]",
+    "metadata": {
+      "doc_id": "CUAD_0549_C0046",
+      "source": "augmented",
+      "clause_type": "Confidentiality",
+      "aug_from": "CUAD_0549_C0046"
+    }
+  },
+  {
+    "index": 14,
+    "prompt": "Clause: 284.6. Audit Rights. Each party shall observe audit rights requirements for the duration of this Agreement and for a period of 3 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: What should we be conc",
+    "baseline_rejected": "The audit rights provision as stated in the agreement outlines obligations relating to audit rights. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nWhat this means for your business is, the audit rights clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the audit rights terms carefully and consult legal counsel before signing.\n\nCITATION: [CUAD_0059_C0077, spans 174\u2013345]",
+    "metadata": {
+      "doc_id": "CUAD_0059_C0077",
+      "source": "synthetic",
+      "clause_type": "Audit Rights"
+    }
+  },
+  {
+    "index": 15,
+    "prompt": "Clause: Section 824.9 \u2014 Intellectual Property. Notwithstanding any other provision of this Agreement, the parties agree that intellectual property obligations herein shall remain in full force and effect. The Customer shall provide sixty (60) days prior written notice prior to invoking rights under ",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement as per the agreement terms.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: Effectively, the intellectual property clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Compare this clause with industry benchmarks and best practices.\n\nCITATION: [CUAD_0009_C0041, spans 15110\u201315342]",
+    "metadata": {
+      "doc_id": "CUAD_0009_C0041",
+      "source": "augmented",
+      "risk_level": "HIGH",
+      "aug_from": "CUAD_0009_C0041"
+    }
+  },
+  {
+    "index": 16,
+    "prompt": "Clause: Section 191.8 \u2014 Non-Solicitation. Notwithstanding any other provision of this Agreement, the parties agree that non-solicitation obligations herein shall remain in full force and effect. Provider shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What ",
+    "baseline_rejected": "The non-solicitation provision as stated in the agreement outlines obligations relating to non-solicitation. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: HIGH\n\nBreaking this down, the non-solicitation clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Set up internal monitoring to ensure compliance with non-solicitation requirements.\n\nCITATION: [CUAD_0220_C0079, spans 51\u2013213]",
+    "metadata": {
+      "doc_id": "CUAD_0220_C0079",
+      "source": "synthetic",
+      "clause_type": "Non-Solicitation"
+    }
+  },
+  {
+    "index": 17,
+    "prompt": "Clause: 354.7. Confidentiality. Each party shall observe confidentiality requirements for the duration of this Agreement and for a period of 7 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: How does this af",
+    "baseline_rejected": "The confidentiality provision as stated in the agreement outlines obligations relating to confidentiality. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nEffectively, the confidentiality clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the confidentiality terms carefully and consult legal counsel before signing.\n\nCITATION: [CUAD_0126_C0035, spans 36\u2013185]",
+    "metadata": {
+      "doc_id": "CUAD_0126_C0035",
+      "source": "synthetic",
+      "clause_type": "Confidentiality"
+    }
+  },
+  {
+    "index": 18,
+    "prompt": "Clause: Article 338.4 (Pricing Adjustment). Subject to the terms herein, the provider acknowledges the pricing adjustment provisions and agrees to comply. Breach of this section entitles the non-breaching party to seek remedies as described in Section 32.9.\n\nQuery: Can you summarize the obligations?",
+    "baseline_rejected": "The pricing adjustment provision as stated in the agreement outlines obligations relating to pricing adjustment. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nBreaking this down, the pricing adjustment clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Brief your team on the pricing adjustment obligations and their implications.\n\nCITATION: [CUAD_0264_C0098, spans 117\u2013303]",
+    "metadata": {
+      "doc_id": "CUAD_0264_C0098",
+      "source": "synthetic",
+      "clause_type": "Pricing Adjustment"
+    }
+  },
+  {
+    "index": 19,
+    "prompt": "Clause: Article 383.3 (Pricing Adjustment). Subject to the terms herein, the contractor acknowledges the pricing adjustment provisions and agrees to comply. Breach of this section entitles the non-breaching party to seek remedies as described in Section 39.3.\n\nQuery: What should we be concerned abou",
+    "baseline_rejected": "The pricing adjustment provision as stated in the agreement outlines obligations relating to pricing adjustment. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nSimply put, the pricing adjustment clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Assess financial exposure under the pricing adjustment terms and ensure adequate coverage.\n\nCITATION: [CUAD_0434_C0024, spans 142\u2013327]",
+    "metadata": {
+      "doc_id": "CUAD_0434_C0024",
+      "source": "synthetic",
+      "clause_type": "Pricing Adjustment"
+    }
+  },
+  {
+    "index": 20,
+    "prompt": "Clause: 131.3. Non-Compete. Each party shall observe non-compete requirements for the duration of this Agreement and for a period of 3 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: Are there hidden risks i",
+    "baseline_rejected": "The non-compete provision as stated in the agreement outlines obligations relating to non-compete. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: MEDIUM\n\nIn plain terms, the non-compete clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Brief your team on the non-compete obligations and their implications.\n\nCITATION: [CUAD_0326_C0079, spans 127\u2013299]",
+    "metadata": {
+      "doc_id": "CUAD_0326_C0079",
+      "source": "synthetic",
+      "clause_type": "Non-Compete"
+    }
+  },
+  {
+    "index": 21,
+    "prompt": "Clause: Section 176.6 \u2014 Termination. Notwithstanding any other provision of this Agreement, the parties agree that termination obligations herein shall remain in full force and effect. The Customer shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What are th",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: This clause means, the termination clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the termination terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0176_C0079, spans 28230\u201328431]",
+    "metadata": {
+      "doc_id": "CUAD_0176_C0079",
+      "source": "generation_data",
+      "risk_level": "LOW"
+    }
+  },
+  {
+    "index": 22,
+    "prompt": "Clause: 463.6. Audit Rights. Each party shall observe audit rights requirements for the duration of this Agreement and for a period of 7 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: What deadlines or noti",
+    "baseline_rejected": "The audit rights provision as stated in the agreement outlines obligations relating to audit rights. The parties should be aware of the terms and conditions specified therein subject to the conditions specified.",
+    "chosen_dpo": "RISK: LOW\n\nIn plain terms, the audit rights clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Document all activities related to audit rights obligations.\n\nCITATION: [CUAD_0184_C0037, spans 42\u2013283]",
+    "metadata": {
+      "doc_id": "CUAD_0184_C0037",
+      "source": "augmented",
+      "clause_type": "Audit Rights",
+      "aug_from": "CUAD_0184_C0037"
+    }
+  },
+  {
+    "index": 23,
+    "prompt": "Clause: Section 284.3 \u2014 Indemnification. Notwithstanding any other provision of this Agreement, the parties agree that indemnification obligations herein shall remain in full force and effect. Client shall provide sixty (60) days advance notice prior to invoking rights under this section.\n\nQuery: Ca",
+    "baseline_rejected": "The indemnification provision as stated in the agreement outlines obligations relating to indemnification. The parties should be aware of the terms and conditions specified therein as per the agreement terms.",
+    "chosen_dpo": "RISK: CRITICAL\n\nPut plainly, the indemnification clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Negotiate more favourable indemnification provisions if possible.\n\nCITATION: [CUAD_0421_C0065, spans 180\u2013350]",
+    "metadata": {
+      "doc_id": "CUAD_0421_C0065",
+      "source": "augmented",
+      "clause_type": "Indemnification",
+      "aug_from": "CUAD_0421_C0065"
+    }
+  },
+  {
+    "index": 24,
+    "prompt": "Clause: Article 69.2 (Termination). Subject to the terms herein, the customer acknowledges the termination provisions and agrees to comply. Breach of this section entitles the non-breaching party to seek remedies as described in Section 39.1.\n\nQuery: What happens if this clause is breached?",
+    "baseline_rejected": "The termination provision as stated in the agreement outlines obligations relating to termination. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nEffectively, the termination clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the termination terms carefully and consult legal counsel before signing.\n\nCITATION: [CUAD_0046_C0052, spans 138\u2013349]",
+    "metadata": {
+      "doc_id": "CUAD_0046_C0052",
+      "source": "synthetic",
+      "clause_type": "Termination"
+    }
+  },
+  {
+    "index": 25,
+    "prompt": "Clause: Section 53.4 \u2014 Force Majeure. Notwithstanding any other provision of this Agreement, the parties agree that force majeure obligations herein shall remain in full force and effect. The Contractor shall provide written notice within ten (10) business days prior to invoking rights under this se",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement in accordance with the contractual framework.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: Effectively, the force majeure clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Create an internal checklist for clause compliance.\n\nCITATION: [CUAD_0354_C0016, spans 6127\u20136666]",
+    "metadata": {
+      "doc_id": "CUAD_0354_C0016",
+      "source": "augmented",
+      "risk_level": "HIGH",
+      "aug_from": "CUAD_0354_C0016"
+    }
+  },
+  {
+    "index": 26,
+    "prompt": "Clause: Section 47.7 \u2014 Governing Law. Notwithstanding any other provision of this Agreement, the parties agree that governing law obligations herein shall remain in full force and effect. Licensee shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: Can we negot",
+    "baseline_rejected": "The governing law provision as stated in the agreement outlines obligations relating to governing law. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: MEDIUM\n\nSimply put, the governing law clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Compare this governing law clause with industry standard provisions.\n\nCITATION: [CUAD_0294_C0053, spans 196\u2013624]",
+    "metadata": {
+      "doc_id": "CUAD_0294_C0053",
+      "source": "synthetic",
+      "clause_type": "Governing Law"
+    }
+  },
+  {
+    "index": 27,
+    "prompt": "Clause: Article 584.3 (Governing Law). Subject to the terms herein, the provider acknowledges the governing law provisions and agrees to comply. Breach of this section entitles the non-breaching party to seek remedies as described in Section 587.2.\n\nQuery: What happens if this clause is breached?",
+    "baseline_rejected": "The governing law provision as stated in the agreement outlines obligations relating to governing law. The parties should be aware of the terms and conditions specified therein subject to the conditions specified.",
+    "chosen_dpo": "RISK: CRITICAL\n\nIn plain terms, the governing law clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Assess your financial exposure under the governing law terms.\n\nCITATION: [CUAD_0470_C0090, spans 42\u2013547]",
+    "metadata": {
+      "doc_id": "CUAD_0470_C0090",
+      "source": "augmented",
+      "clause_type": "Governing Law",
+      "aug_from": "CUAD_0470_C0090"
+    }
+  },
+  {
+    "index": 28,
+    "prompt": "Clause: Clause 515.9: Insurance. The Client represents and warrants that all insurance obligations will be fulfilled in accordance with applicable law. Failure to comply may result in termination for cause with written notice notice.\n\nQuery: Are there hidden risks in this clause?",
+    "baseline_rejected": "The insurance provision as stated in the agreement outlines obligations relating to insurance. The parties should be aware of the terms and conditions specified therein in accordance with the contractual framework.",
+    "chosen_dpo": "RISK: CRITICAL\n\nWhat this means for your business is, the insurance clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Set up compliance monitoring for insurance requirements.\n\nCITATION: [CUAD_0054_C0083, spans 141\u2013719]",
+    "metadata": {
+      "doc_id": "CUAD_0054_C0083",
+      "source": "augmented",
+      "clause_type": "Insurance",
+      "aug_from": "CUAD_0054_C0083"
+    }
+  },
+  {
+    "index": 29,
+    "prompt": "Clause: Section 739.6 \u2014 Governing Law. Notwithstanding any other provision of this Agreement, the parties agree that governing law obligations herein shall remain in full force and effect. The Customer shall provide fourteen (14) days advance notice prior to invoking rights under this section.\n\nQuer",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement in accordance with the contractual framework.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: The agreement states that, the governing law clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Assess your financial exposure under the clause terms.\n\nCITATION: [CUAD_0366_C0039, spans 6721\u20137265]",
+    "metadata": {
+      "doc_id": "CUAD_0366_C0039",
+      "source": "augmented",
+      "risk_level": "LOW",
+      "aug_from": "CUAD_0366_C0039"
+    }
+  },
+  {
+    "index": 30,
+    "prompt": "Clause: Section 5.5 \u2014 Non-Compete. Notwithstanding any other provision of this Agreement, the parties agree that non-compete obligations herein shall remain in full force and effect. Customer shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What deadlines or",
+    "baseline_rejected": "The non-compete provision as stated in the agreement outlines obligations relating to non-compete. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: HIGH\n\nThis clause means, the non-compete clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Create a compliance checklist for the non-compete requirements before execution.\n\nCITATION: [CUAD_0106_C0067, spans 147\u2013635]",
+    "metadata": {
+      "doc_id": "CUAD_0106_C0067",
+      "source": "synthetic",
+      "clause_type": "Non-Compete"
+    }
+  },
+  {
+    "index": 31,
+    "prompt": "Clause: Section 309.3 \u2014 Non-Solicitation. Notwithstanding any other provision of this Agreement, the parties agree that non-solicitation obligations herein shall remain in full force and effect. The Vendor shall provide written notice prior to invoking rights under this section.\n\nQuery: What are the",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: This clause means, the non-solicitation clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the non-solicitation terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0309_C0079, spans 28160\u201328529]",
+    "metadata": {
+      "doc_id": "CUAD_0309_C0079",
+      "source": "generation_data",
+      "risk_level": "LOW"
+    }
+  },
+  {
+    "index": 32,
+    "prompt": "Clause: Section 705.9 \u2014 SLA. Notwithstanding any other provision of this Agreement, the parties agree that sla obligations herein shall remain in full force and effect. Customer shall provide fourteen (14) days advance notice prior to invoking rights under this section.\n\nQuery: Is this clause standa",
+    "baseline_rejected": "The sla provision as stated in the agreement outlines obligations relating to sla. The parties should be aware of the terms and conditions specified therein pursuant to the provisions herein.",
+    "chosen_dpo": "RISK: LOW\n\nBreaking this down for business use, the sla clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review sla terms carefully and consult legal counsel.\n\nCITATION: [CUAD_0095_C0043, spans 118\u2013243]",
+    "metadata": {
+      "doc_id": "CUAD_0095_C0043",
+      "source": "augmented",
+      "clause_type": "SLA",
+      "aug_from": "CUAD_0095_C0043"
+    }
+  },
+  {
+    "index": 33,
+    "prompt": "Clause: Section 892.6 \u2014 Indemnification. Notwithstanding any other provision of this Agreement, the parties agree that indemnification obligations herein shall remain in full force and effect. The Company shall provide ninety (90) days notice prior to invoking rights under this section.\n\nQuery: High",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement in accordance with the contractual framework.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: In plain terms, the indemnification clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Document all activities related to clause obligations.\n\nCITATION: [CUAD_0510_C0052, spans 5791\u20136273]",
+    "metadata": {
+      "doc_id": "CUAD_0510_C0052",
+      "source": "augmented",
+      "risk_level": "HIGH",
+      "aug_from": "CUAD_0510_C0052"
+    }
+  },
+  {
+    "index": 34,
+    "prompt": "Clause: Section 597.7 \u2014 Pricing Adjustment. Notwithstanding any other provision of this Agreement, the parties agree that pricing adjustment obligations herein shall remain in full force and effect. The Vendor shall provide written notice prior to invoking rights under this section.\n\nQuery: What are",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: Simply put, the pricing adjustment clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the pricing adjustment terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0597_C0020, spans 15852\u201316638]",
+    "metadata": {
+      "doc_id": "CUAD_0597_C0020",
+      "source": "generation_data",
+      "risk_level": "LOW"
+    }
+  },
+  {
+    "index": 35,
+    "prompt": "Clause: Section 441.2 \u2014 Intellectual Property. Notwithstanding any other provision of this Agreement, the parties agree that intellectual property obligations herein shall remain in full force and effect. The Company shall provide written notice prior to invoking rights under this section.\n\nQuery: W",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement in accordance with the contractual framework.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: The bottom line is, the intellectual property clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Document all activities related to clause obligations.\n\nCITATION: [CUAD_0215_C0054, spans 44258\u201344570]",
+    "metadata": {
+      "doc_id": "CUAD_0215_C0054",
+      "source": "augmented",
+      "risk_level": "HIGH",
+      "aug_from": "CUAD_0215_C0054"
+    }
+  },
+  {
+    "index": 36,
+    "prompt": "Clause: Clause 588.7: Assignment. The Licensee represents and warrants that all assignment obligations will be fulfilled in accordance with applicable law. Failure to comply may result in termination for cause with thirty (30) days written notice notice.\n\nQuery: Can we negotiate better terms?",
+    "baseline_rejected": "The assignment provision as stated in the agreement outlines obligations relating to assignment. The parties should be aware of the terms and conditions specified therein as per the agreement terms.",
+    "chosen_dpo": "RISK: CRITICAL\n\nWhat this means for your business is, the assignment clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review assignment terms carefully and consult legal counsel.\n\nCITATION: [CUAD_0176_C0080, spans 22\u2013345]",
+    "metadata": {
+      "doc_id": "CUAD_0176_C0080",
+      "source": "augmented",
+      "clause_type": "Assignment",
+      "aug_from": "CUAD_0176_C0080"
+    }
+  },
+  {
+    "index": 37,
+    "prompt": "Clause: Article 5.6 (Assignment). Subject to the terms herein, the vendor acknowledges the assignment provisions and agrees to comply. Breach of this section entitles the non-breaching party to seek remedies as described in Section 18.6.\n\nQuery: What actions should we take before signing?",
+    "baseline_rejected": "The assignment provision as stated in the agreement outlines obligations relating to assignment. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nBreaking this down, the assignment clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Create a compliance checklist for the assignment requirements before execution.\n\nCITATION: [CUAD_0340_C0062, spans 91\u2013587]",
+    "metadata": {
+      "doc_id": "CUAD_0340_C0062",
+      "source": "synthetic",
+      "clause_type": "Assignment"
+    }
+  },
+  {
+    "index": 38,
+    "prompt": "Clause: Section 551.8 \u2014 Confidentiality. Notwithstanding any other provision of this Agreement, the parties agree that confidentiality obligations herein shall remain in full force and effect. The Client shall provide written notice prior to invoking rights under this section.\n\nQuery: Highlight the ",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement as per the agreement terms.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: Effectively, the confidentiality clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Assess your financial exposure under the clause terms.\n\nCITATION: [CUAD_0574_C0003, spans 14178\u201314700]",
+    "metadata": {
+      "doc_id": "CUAD_0574_C0003",
+      "source": "augmented",
+      "risk_level": "HIGH",
+      "aug_from": "CUAD_0574_C0003"
+    }
+  },
+  {
+    "index": 39,
+    "prompt": "Clause: Section 387.2 \u2014 Limitation of Liability. Notwithstanding any other provision of this Agreement, the parties agree that limitation of liability obligations herein shall remain in full force and effect. The Provider shall provide written notice within ten (10) business days prior to invoking r",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement notwithstanding any other provisions.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: The agreement states that, the limitation of liability clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Compare this clause with industry benchmarks and best practices.\n\nCITATION: [CUAD_0422_C0034, spans 13118\u201313522]",
+    "metadata": {
+      "doc_id": "CUAD_0422_C0034",
+      "source": "augmented",
+      "risk_level": "HIGH",
+      "aug_from": "CUAD_0422_C0034"
+    }
+  },
+  {
+    "index": 40,
+    "prompt": "Clause: Section 6.2 \u2014 Non-Solicitation. Notwithstanding any other provision of this Agreement, the parties agree that non-solicitation obligations herein shall remain in full force and effect. The Customer shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: Wha",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: MEDIUM\n\nMEDIUM risk: Simply put, the non-solicitation clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the non-solicitation terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0006_C0091, spans 37937\u201338333]",
+    "metadata": {
+      "doc_id": "CUAD_0006_C0091",
+      "source": "generation_data",
+      "risk_level": "MEDIUM"
+    }
+  },
+  {
+    "index": 41,
+    "prompt": "Clause: Section 426.8 \u2014 Non-Solicitation. Notwithstanding any other provision of this Agreement, the parties agree that non-solicitation obligations herein shall remain in full force and effect. The Provider shall provide written notice prior to invoking rights under this section.\n\nQuery: Highlight ",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement subject to the conditions specified.",
+    "chosen_dpo": "RISK: LOW\n\nLOW risk: What this boils down to is, the non-solicitation clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Ensure your team understands the clause obligations before execution.\n\nCITATION: [CUAD_0309_C0079, spans 28160\u201328529]",
+    "metadata": {
+      "doc_id": "CUAD_0309_C0079",
+      "source": "augmented",
+      "risk_level": "LOW",
+      "aug_from": "CUAD_0309_C0079"
+    }
+  },
+  {
+    "index": 42,
+    "prompt": "Clause: Section 228.1 \u2014 Warranty. Notwithstanding any other provision of this Agreement, the parties agree that warranty obligations herein shall remain in full force and effect. The Vendor shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What are the key ri",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: The agreement states that, the warranty clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the warranty terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0228_C0023, spans 11573\u201312200]",
+    "metadata": {
+      "doc_id": "CUAD_0228_C0023",
+      "source": "generation_data",
+      "risk_level": "HIGH"
+    }
+  },
+  {
+    "index": 43,
+    "prompt": "Clause: 420.8. Confidentiality. Each party shall observe confidentiality requirements for the duration of this Agreement and for a period of 7 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: What happens if ",
+    "baseline_rejected": "The confidentiality provision as stated in the agreement outlines obligations relating to confidentiality. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: MEDIUM\n\nWhat this means for your business is, the confidentiality clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the confidentiality terms carefully and consult legal counsel before signing.\n\nCITATION: [CUAD_0341_C0081, spans 162\u2013291]",
+    "metadata": {
+      "doc_id": "CUAD_0341_C0081",
+      "source": "synthetic",
+      "clause_type": "Confidentiality"
+    }
+  },
+  {
+    "index": 44,
+    "prompt": "Clause: Section 349.4 \u2014 Governing Law. Notwithstanding any other provision of this Agreement, the parties agree that governing law obligations herein shall remain in full force and effect. The Customer shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What ar",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: MEDIUM\n\nMEDIUM risk: This clause means, the governing law clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the governing law terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0349_C0099, spans 35222\u201335788]",
+    "metadata": {
+      "doc_id": "CUAD_0349_C0099",
+      "source": "generation_data",
+      "risk_level": "MEDIUM"
+    }
+  },
+  {
+    "index": 45,
+    "prompt": "Clause: Section 308.3 \u2014 Non-Solicitation. Notwithstanding any other provision of this Agreement, the parties agree that non-solicitation obligations herein shall remain in full force and effect. Supplier shall provide written notice prior to invoking rights under this section.\n\nQuery: What happens i",
+    "baseline_rejected": "The non-solicitation provision as stated in the agreement outlines obligations relating to non-solicitation. The parties should be aware of the terms and conditions specified therein in accordance with the contractual framework.",
+    "chosen_dpo": "RISK: LOW\n\nEffectively, the non-solicitation clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Negotiate more favourable non-solicitation provisions if possible.\n\nCITATION: [CUAD_0073_C0091, spans 17\u2013580]",
+    "metadata": {
+      "doc_id": "CUAD_0073_C0091",
+      "source": "augmented",
+      "clause_type": "Non-Solicitation",
+      "aug_from": "CUAD_0073_C0091"
+    }
+  },
+  {
+    "index": 46,
+    "prompt": "Clause: 375.3. Warranty. Each party shall observe warranty requirements for the duration of this Agreement and for a period of 5 years following termination. Exceptions apply where information becomes publicly available through no fault of the disclosing party.\n\nQuery: Does this clause favour one pa",
+    "baseline_rejected": "The warranty provision as stated in the agreement outlines obligations relating to warranty. The parties should be aware of the terms and conditions specified therein subject to the conditions specified.",
+    "chosen_dpo": "RISK: CRITICAL\n\nSimply put, the warranty clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Document all activities related to warranty obligations.\n\nCITATION: [CUAD_0411_C0036, spans 146\u2013313]",
+    "metadata": {
+      "doc_id": "CUAD_0411_C0036",
+      "source": "augmented",
+      "clause_type": "Warranty",
+      "aug_from": "CUAD_0411_C0036"
+    }
+  },
+  {
+    "index": 47,
+    "prompt": "Clause: Section 433.4 \u2014 Intellectual Property. Notwithstanding any other provision of this Agreement, the parties agree that intellectual property obligations herein shall remain in full force and effect. The Customer shall provide written notice prior to invoking rights under this section.\n\nQuery: ",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: The agreement states that, the intellectual property clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the intellectual property terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0433_C0056, spans 34382\u201334679]",
+    "metadata": {
+      "doc_id": "CUAD_0433_C0056",
+      "source": "generation_data",
+      "risk_level": "HIGH"
+    }
+  },
+  {
+    "index": 48,
+    "prompt": "Clause: Clause 533.9: Pricing Adjustment. The Licensee represents and warrants that all pricing adjustment obligations will be fulfilled in accordance with applicable law. Failure to comply may result in termination for cause with written notice notice.\n\nQuery: Are there hidden risks in this clause?",
+    "baseline_rejected": "The pricing adjustment provision as stated in the agreement outlines obligations relating to pricing adjustment. The parties should be aware of the terms and conditions specified therein.",
+    "chosen_dpo": "RISK: CRITICAL\n\nThis clause means, the pricing adjustment clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Set up internal monitoring to ensure compliance with pricing adjustment requirements.\n\nCITATION: [CUAD_0193_C0022, spans 58\u2013272]",
+    "metadata": {
+      "doc_id": "CUAD_0193_C0022",
+      "source": "synthetic",
+      "clause_type": "Pricing Adjustment"
+    }
+  },
+  {
+    "index": 49,
+    "prompt": "Clause: Section 354.1 \u2014 Force Majeure. Notwithstanding any other provision of this Agreement, the parties agree that force majeure obligations herein shall remain in full force and effect. The Vendor shall provide thirty (30) days notice prior to invoking rights under this section.\n\nQuery: What are ",
+    "baseline_rejected": "The clause addresses the matter of what are the key risks. The terms should be reviewed in the context of the agreement.",
+    "chosen_dpo": "RISK: HIGH\n\nHIGH risk: Effectively, the force majeure clause imposes obligations that could significantly impact contract value and operational continuity.\n\nACTION: Review the force majeure terms carefully and consult legal counsel before signing to ensure acceptable risk exposure.\n\nCITATION: [CUAD_0354_C0016, spans 6127\u20136666]",
+    "metadata": {
+      "doc_id": "CUAD_0354_C0016",
+      "source": "generation_data",
+      "risk_level": "HIGH"
+    }
+  }
+]

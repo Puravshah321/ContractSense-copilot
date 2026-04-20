@@ -47,3 +47,9 @@ data/processed/qdrant_local/
 
 # Logs
 *.log
+
+# Specific Env and Models
+contractsense_env312/
+*.zip
+
+

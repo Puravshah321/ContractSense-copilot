@@ -1,0 +1,14 @@
+{
+  "base_model": "mistralai/Mistral-7B-Instruct-v0.2",
+  "lora_model": null,
+  "beta": 0.1,
+  "epochs": 2,
+  "batch_size": 4,
+  "learning_rate": 5e-05,
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "train_samples": 1800,
+  "eval_samples": 200,
+  "training_loss": 0.0063604618241818065,
+  "training_time_hours": 0.84
+}
