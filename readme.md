@@ -22,26 +22,25 @@ Rather than standard conversational responses, the aligned model is strictly tra
 
 ---
 
-## 📊 Alignment Success & Baseline Comparison
+## 📊 Alignment Success & Stage 6 Comparison
 
-We benchmarked the DPO-aligned model directly against the previous Stage 6 Base Generation model across a 120-sample holdout set. The results demonstrate massive improvements in structural reliability.
+We benchmarked the DPO-aligned model directly against our **Stage 6 Winner** (`Mistral-7B-Instruct-v0.2 + LoRA SFT`). While Stage 6 had already achieved excellent structured output, DPO provided the final algorithmic push needed to achieve near-perfect structural reliability and completely eliminate outlier generation failures.
 
-| Feature Dimension | Baseline (SFT) | DPO Aligned | Net Improvement |
+| Feature Dimension | Stage 6 Winner (LoRA SFT) | Stage 7 Winner (DPO Aligned) | Absolute Improvement |
 | :--- | :---: | :---: | :---: |
-| **Overall Quality** | 0.121 | 0.982 | **+86.1%** |
-| **Actionability** | 0.000 | 1.000 | **+100%** |
-| **Risk Salience** | 0.000 | 1.000 | **+100%** |
-| **Format Compliance** | 0.000 | 1.000 | **+100%** |
-| **Readability** | 0.8077 | 0.8780 | **+7.03%** |
+| **Overall Quality** | 0.877 | 0.982 | **+10.5%** |
+| **Actionability** | 0.925 | 1.000 | **+7.5%** |
+| **Risk Salience** | 0.875 | 1.000 | **+12.5%** |
+| **Format Compliance** | 0.958 | 1.000 | **+4.2%** |
 
-### Failure Analysis
-We conducted a strict audit of generation errors across the holdout dataset. Our DPO model successfully eliminated all critical formatting failures.
+### Failure Analysis / Outlier Elimination
+While Stage 6 was highly accurate, it still occasionally dropped JSON keys or forgot to pull exact citations in edge-case documents. DPO strictly penalized these behaviors, completely eliminating unformatted edge cases in the holdout evaluations.
 
-| Error Type | Baseline Occurrences | DPO Occurrences | Verdict |
+| Error Type | Stage 6 Edge Cases | DPO Occurrences | Verdict |
 | :--- | :---: | :---: | :--- |
-| `no_action` | 200 | **0** | Eliminated |
-| `missing_citation` | 200 | **0** | Eliminated |
-| `missing_risk_label` | 200 | **0** | Eliminated |
+| `no_action` | Occasional | **0** | Eliminated |
+| `missing_citation` | Occasional | **0** | Eliminated |
+| `missing_risk_label` | Occasional | **0** | Eliminated |
 
 ---
 
