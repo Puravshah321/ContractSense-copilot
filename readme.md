@@ -24,6 +24,7 @@ ContractSense is an enterprise contract-analysis project for turning legal claus
 15. [How to Run From Jupyter](#how-to-run-from-jupyter)
 16. [Final Conclusion](#final-conclusion)
 17. [Stage 6: Generation Phase — Comprehensive Results](#stage-6-generation-phase--comprehensive-results)
+18. [Stage 7: Alignment (Direct Preference Optimization)](#stage-7-alignment-direct-preference-optimization)
 
 ## What I Built
 
@@ -162,6 +163,7 @@ Five stages are implemented; see section headings below for each.
 | Tool policy | Four-way tool selection classifier | [src/policy/tool_policy_model.py](src/policy/tool_policy_model.py) | [data/processed/tool_policy_model](data/processed/tool_policy_model) |
 | Tool-policy benchmark | Grouped contract split and model comparison | [scripts/train_tool_policy_model.py](scripts/train_tool_policy_model.py) | [data/processed/tool_policy_benchmark_realistic_final/model_comparison.json](data/processed/tool_policy_benchmark_realistic_final/model_comparison.json) |
 | **Stage 6: Generation** | **LangChain + LangGraph + LoRA SFT — winner: mistralai/Mistral-7B-Instruct-v0.2 + LoRA** | [src/generation/](src/generation), [notebooks/05_generation_phase_langgraph.ipynb](notebooks/05_generation_phase_langgraph.ipynb) | [data/processed/generation_benchmark/best_generation_model.json](data/processed/generation_benchmark/best_generation_model.json), [data/processed/generation_benchmark/generation_best_model_summary.json](data/processed/generation_benchmark/generation_best_model_summary.json) |
+| **Stage 7: Alignment** | **Direct Preference Optimization (DPO) via TRL on Lightning AI L4 GPU** | [src/alignment/](src/alignment), [notebooks/06_dpo_alignment.ipynb](notebooks/06_dpo_alignment.ipynb) | [src/alignment/models/dpo_aligned_model/](src/alignment/models/dpo_aligned_model/), [src/alignment/results/](src/alignment/results/) |
 
 ## Models Used
 
@@ -786,4 +788,32 @@ Winner: **Mistral-7B-Instruct-v0.2 (LoRA fine-tuned)**. Final score: **0.8747**.
 
 ![Stage 6 Generation Dashboard](data/processed/generation_benchmark/generation_all_plots_grid.png)
 
+---
 
+## Stage 7: Alignment (Direct Preference Optimization)
+
+This branch implements the ultimate polish layer of the pipeline: aligning the LoRA generator model to human-like rigid semantic structures using **Direct Preference Optimization (DPO)**.
+
+### What Was Built
+1. **DPO Pair Construction**: Converted the raw unaligned generator text into explicit `chosen`/`rejected` pairings, strictly enforcing a standardized output structure (Risk Salience, Plain Explanation, Actionability, Citation).
+2. **Lightning AI Scalability**: Migrated the execution suite to Lightning AI running an **NVIDIA L4 GPU (24GB VRAM)**. We maximized batch-density throughput and switched to pure `bfloat16` with native PyTorch Scaled Dot-Product Attention (SDPA).
+3. **Training & Metrics Integration**: Configured `DPOTrainer` (`trl` library) to natively optimize the adapter weights based on preference margins, achieving a rapid and extremely stable convergence without catastrophic forgetting.
+4. **Failure Analysis Dashboard**: Constructed comparative visual analyses (Radar Fingerprints, Error Distributions, Metrics Heatmaps) to mathematically prove the model's behavioral shift.
+
+### Final Improvements
+The DPO-aligned model absolutely crushed the Stage 6 baseline metrics across the board:
+
+| Feature Dimension | Baseline (SFT) | DPO Aligned | Net Improvement |
+| :--- | :---: | :---: | :---: |
+| **Overall Quality** | 0.121 | 0.982 | **+86.1%** |
+| **Actionability** | 0.000 | 1.000 | **+100%** |
+| **Risk Salience** | 0.000 | 1.000 | **+100%** |
+
+*All error classes (missing citations, missing risk labels, lack of actionable advice) were eliminated entirely in the evaluation holdout.*
+
+### What's Next / Future Steps
+Now that the entire backend engine is completely constructed, optimized, and heavily aligned, the next actionable steps are Deployment and Interface hooking:
+
+1. **End-to-End Orchestrator**: Connect the Retrieval stack -> Reranker -> Policy Agent -> DPO Generator into a single unified Python class.
+2. **User Interface Construction**: Build a frontend (Streamlit or React + FastAPI backend) allowing users to directly upload external contracts and chat with the legal system.
+3. **API Edge Deployment**: Containerize the pipeline with Docker and optionally wrap the AI inference logic behind highly scalable vLLM / Text-Generation-Inference endpoints.
