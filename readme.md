@@ -48,8 +48,8 @@ While Stage 6 was highly accurate, it still occasionally dropped JSON keys or fo
 
 All training artifacts, multi-model comparisons, and failure heatmaps have been successfully pushed to the repository.
 
-1. **Radar Fingerprints**: Visual comparison showing how the DPO model stretches out actionability and risk parameters compared to LoRA and Base Mistral (`Images/radar_fingerprint.png`).
-2. **Error Distributions**: Confirmation of the complete elimination of formatting errors (`Images/error_distribution.png`).
+1. **Performance Jump (LoRA vs DPO)**: Shows the massive absolute improvement pushed by DPO using our verified SFT LoRA benchmark. (`Images/true_metrics_comparison.png`)
+2. **Error Elimination**: Demonstration of how DPO takes the handful of formatting errors that still existed in Stage 6 and completely zeros them out (`Images/true_error_elimination.png`).
 3. **Training Curves**: Reward margin verification confirming proper convergence (`Images/training_curves.png`).
 
 ---

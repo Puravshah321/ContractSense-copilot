@@ -38,7 +38,7 @@ print("3. Fusing your DPO 'Brain Adapters' onto the Base Model...")
 model = PeftModel.from_pretrained(model, ADAPTER_PATH)
 
 print("\n" + "="*60)
-print("🧠 MODEL READY! PREPARING TEST DATA...")
+print("MODEL READY! PREPARING TEST DATA...")
 print("="*60)
 
 test_clause = """
@@ -53,8 +53,8 @@ test_query = "Can the vendor just cancel this contract suddenly? What do I owe t
 # Format the exact way the model was trained during DPO
 prompt = f"Clause: {test_clause.strip()}\n\nQuery: {test_query}\n\n[/INST]"
 
-print("\n🚀 Injecting clause and query into the Model...")
-inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
+print("\nInjecting clause and query into the Model...")
+inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
 
 start_time = time.time()
 with torch.no_grad():
@@ -74,7 +74,7 @@ raw_response = tokenizer.decode(outputs[0], skip_special_tokens=True)
 final_answer = raw_response.split("[/INST]")[-1].strip()
 
 print("\n" + "="*60)
-print("             🤖 CONTRACTSENSE DPO OUTPUT")
+print("             CONTRACTSENSE DPO OUTPUT")
 print("="*60)
 print(final_answer)
 print("="*60)
