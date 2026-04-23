@@ -23,6 +23,12 @@ from transformers import (
 from trl import DPOTrainer
 
 random.seed(42)
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+try:
+    torch.set_float32_matmul_precision("high")
+except Exception:
+    pass
 
 # ══════════════════════════════════════════════════════════════
 # CONFIG
@@ -33,8 +39,8 @@ CACHE_DIR    = os.path.join(os.getcwd(), "hf_cache")
 HF_USERNAME  = "22Jay"
 HF_REPO      = f"{HF_USERNAME}/ContractSense-Grounded-DPO"
 
-BATCH_SIZE   = 8
-GRAD_ACCUM   = 2
+BATCH_SIZE   = int(os.environ.get("PER_DEVICE_BATCH_SIZE", "16"))  # RTX Pro 6000 96GB friendly
+GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM", "1"))
 NUM_EPOCHS   = 4
 LR           = 5e-5
 MAX_LEN      = 1024
@@ -42,6 +48,8 @@ MAX_PROMPT   = 512
 LORA_R       = 64
 LORA_ALPHA   = 128
 DPO_BETA     = 0.15
+DATALOADER_WORKERS = min(24, max(4, (os.cpu_count() or 8) // 2))
+SAVE_STEPS   = int(os.environ.get("SAVE_STEPS", "50"))
 
 
 # ══════════════════════════════════════════════════════════════
@@ -64,6 +72,25 @@ def _safe_kwargs(cls_or_fn, candidates):
     if valid is None:
         return candidates
     return {k: v for k, v in candidates.items() if k in valid}
+
+
+def _latest_checkpoint(output_dir):
+    if not os.path.isdir(output_dir):
+        return None
+    checkpoints = []
+    for name in os.listdir(output_dir):
+        if not name.startswith("checkpoint-"):
+            continue
+        try:
+            step = int(name.split("-")[-1])
+        except ValueError:
+            continue
+        path = os.path.join(output_dir, name)
+        if os.path.isdir(path):
+            checkpoints.append((step, path))
+    if not checkpoints:
+        return None
+    return sorted(checkpoints)[-1][1]
 
 
 # ══════════════════════════════════════════════════════════════
@@ -145,10 +172,11 @@ def train_dpo(dataset, output_dir):
         "per_device_train_batch_size": BATCH_SIZE, "per_device_eval_batch_size": BATCH_SIZE,
         "gradient_accumulation_steps": GRAD_ACCUM, "learning_rate": LR,
         "lr_scheduler_type": "cosine", "warmup_ratio": 0.05, "bf16": True,
-        "logging_steps": 5, "save_strategy": "epoch", "save_total_limit": 1,
+        "logging_steps": 5, "save_strategy": "steps", "save_steps": SAVE_STEPS, "save_total_limit": 2,
         "gradient_checkpointing": True, "report_to": "none",
         "remove_unused_columns": False, "group_by_length": True,
-        "dataloader_num_workers": 4, "dataloader_pin_memory": True,
+        "dataloader_num_workers": DATALOADER_WORKERS, "dataloader_pin_memory": True,
+        "dataloader_persistent_workers": True,
         "gradient_checkpointing_kwargs": {"use_reentrant": False},
     }
     dpo_args = {"beta": DPO_BETA, "max_length": MAX_LEN, "max_prompt_length": MAX_PROMPT}
@@ -214,7 +242,10 @@ def train_dpo(dataset, output_dir):
 
     print("Starting training...\n")
     t0 = time.time()
-    trainer.train()
+    resume_checkpoint = _latest_checkpoint(output_dir)
+    if resume_checkpoint:
+        print(f"Resuming from checkpoint: {resume_checkpoint}")
+    trainer.train(resume_from_checkpoint=resume_checkpoint)
     elapsed = time.time() - t0
     print(f"\nTraining complete in {elapsed/60:.1f} minutes")
 
@@ -310,6 +341,7 @@ def evaluate_model(model, tokenizer, dataset, max_samples=60):
         "decision_accuracy": metrics["correct_decision"] / max(metrics["total"], 1),
         "hallucination_rate": 1.0 - (metrics["hallucination_caught"] / max(metrics["hallucination_total"], 1)),
         "refusal_accuracy": metrics["not_found_correct"] / max(metrics["not_found_total"], 1),
+        "not_found_accuracy": metrics["not_found_correct"] / max(metrics["not_found_total"], 1),
         "grounding_accuracy": metrics["grounded_correct"] / max(metrics["grounded_total"], 1),
     }
 
@@ -329,6 +361,53 @@ def evaluate_model(model, tokenizer, dataset, max_samples=60):
 # ══════════════════════════════════════════════════════════════
 # 4. PUSH TO HUGGING FACE
 # ══════════════════════════════════════════════════════════════
+
+def generate_eval_charts(eval_results, output_dir):
+    """Save PNG charts after training/evaluation."""
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib not installed; skipping chart generation.")
+        return []
+
+    image_dir = os.path.join(output_dir, "images")
+    os.makedirs(image_dir, exist_ok=True)
+
+    labels = ["decision", "not_found", "grounding"]
+    values = [
+        eval_results.get("decision_accuracy", 0.0),
+        eval_results.get("refusal_accuracy", 0.0),
+        eval_results.get("grounding_accuracy", 0.0),
+    ]
+    colors = ["#2563EB", "#DC2626", "#059669"]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(labels, values, color=colors)
+    ax.set_ylim(0, 1.05)
+    ax.set_ylabel("score")
+    ax.set_title("ContractSense Grounded DPO Evaluation")
+    for idx, value in enumerate(values):
+        ax.text(idx, value + 0.03, f"{value:.0%}", ha="center", fontweight="bold")
+    fig.tight_layout()
+    path1 = os.path.join(image_dir, "dpo_eval_metrics.png")
+    fig.savefig(path1, dpi=200)
+    plt.close(fig)
+
+    hallucination = eval_results.get("hallucination_rate", 0.0)
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.bar(["hallucination_rate"], [hallucination], color="#EA580C")
+    ax.set_ylim(0, 1.0)
+    ax.set_ylabel("rate")
+    ax.set_title("DPO Hallucination Rate")
+    ax.text(0, hallucination + 0.03, f"{hallucination:.0%}", ha="center", fontweight="bold")
+    fig.tight_layout()
+    path2 = os.path.join(image_dir, "dpo_hallucination_rate.png")
+    fig.savefig(path2, dpi=200)
+    plt.close(fig)
+
+    print(f"Saved charts -> {path1}, {path2}")
+    return [path1, path2]
+
 
 def push_to_hf(adapter_dir):
     print(f"\n{'='*60}")
@@ -388,6 +467,21 @@ if __name__ == "__main__":
     with open(eval_path, "w") as f:
         json.dump(eval_results, f, indent=2)
     print(f"Eval results saved → {eval_path}")
+
+    print("\nStep 3B: Generating evaluation charts...")
+    generate_eval_charts(eval_results, OUTPUT_DIR)
+
+    try:
+        from evaluate_precision_pipeline import evaluate as evaluate_precision_pipeline
+        from evaluate_precision_pipeline import write_outputs as write_precision_outputs
+        precision_metrics, precision_rows = evaluate_precision_pipeline()
+        write_precision_outputs(precision_metrics, precision_rows, os.path.join(OUTPUT_DIR, "images"))
+        precision_path = os.path.join(OUTPUT_DIR, "precision_pipeline_metrics.json")
+        with open(precision_path, "w") as f:
+            json.dump({"metrics": precision_metrics, "cases": precision_rows}, f, indent=2)
+        print(f"Precision pipeline metrics saved -> {precision_path}")
+    except Exception as e:
+        print(f"Precision pipeline evaluation skipped: {e}")
 
     # Step 4: Push
     print("\nStep 4: Pushing to Hugging Face...")

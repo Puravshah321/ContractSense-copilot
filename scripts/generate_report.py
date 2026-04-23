@@ -8,7 +8,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 # Data for visuals
 categories = ['Grounding Accuracy', 'Hallucination Rate', 'Refusal Accuracy (NOT_FOUND)', 'Decision Accuracy']
 baseline_scores = [62.0, 41.0, 48.0, 60.0]
-dpo_scores = [86.7, 20.0, 90.0, 75.7]  # Real metrics from V2 training run
+dpo_scores = [33.3, 0.0, 85.7, 59.5]  # Real metrics from V2 precision run
 
 def create_visuals():
     os.makedirs('Images', exist_ok=True)

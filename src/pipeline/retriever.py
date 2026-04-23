@@ -1,10 +1,118 @@
 """
 Hybrid Retriever: TF-IDF (lightweight) + optional Dense Embeddings.
 Works on CPU for Streamlit Cloud; upgrades to sentence-transformers when available.
+
+Precision upgrade:
+  - expand legal query keywords
+  - retrieve 10+ candidates, rerank, keep the best evidence-grade clauses
+  - boost section/topic matches
+  - penalize generic clauses such as Entire Agreement / General boilerplate
 """
+import re
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+
+_STOPWORDS = {
+    "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "do", "does", "did", "will", "would", "shall",
+    "should", "may", "might", "can", "could", "of", "in", "to", "for",
+    "with", "on", "at", "by", "from", "this", "that", "it", "its", "or",
+    "and", "not", "no", "if", "but", "what", "how", "when", "where",
+    "who", "which", "there", "this", "agreement", "contract", "clause",
+    "section", "include", "includes", "including", "contain", "contains",
+}
+
+_QUERY_EXPANSIONS = {
+    "warranty": ["warranty", "warranties", "warrants", "guarantee", "guarantees", "representation", "representations", "liability"],
+    "warranties": ["warranty", "warranties", "warrants", "guarantee", "representation", "representations"],
+    "guarantee": ["warranty", "guarantee", "warrants", "representation"],
+    "duration": ["duration", "term", "period", "effective", "commencement", "expiration", "expires", "year", "month", "day"],
+    "term": ["duration", "term", "period", "effective", "commencement", "expiration", "expires"],
+    "long": ["duration", "term", "period", "year", "month", "day"],
+    "liability": ["liability", "liable", "cap", "limit", "limitation", "damages", "indemnity", "indemnification"],
+    "data": ["data", "personal", "processor", "controller", "breach", "transfer", "share", "disclose", "outside", "cross-border"],
+    "india": ["india", "outside", "cross-border", "transfer", "data", "personal"],
+    "shared": ["share", "shared", "disclose", "disclosure", "transfer", "third-party", "third party"],
+    "share": ["share", "shared", "disclose", "disclosure", "transfer", "third-party", "third party"],
+    "confidential": ["confidential", "confidentiality", "disclose", "disclosure", "receiving", "information"],
+    "termination": ["termination", "terminate", "expires", "notice", "breach", "term"],
+    "payment": ["payment", "pay", "invoice", "fees", "late", "interest"],
+    "indemnification": ["indemnification", "indemnify", "indemnity", "hold harmless", "third-party", "claim"],
+}
+
+_SECTION_PRIORITIES = {
+    "warranty": ["warranty", "representations", "representation", "liability"],
+    "guarantee": ["warranty", "representations", "representation"],
+    "duration": ["term", "duration", "commencement", "expiration"],
+    "term": ["term", "duration", "commencement", "expiration"],
+    "liability": ["limitation of liability", "liability", "indemnification"],
+    "data": ["data protection", "privacy", "security", "confidentiality"],
+    "india": ["data protection", "privacy", "security", "confidentiality"],
+    "termination": ["termination", "term"],
+}
+
+_GENERIC_SECTION_TERMS = {
+    "entire agreement", "miscellaneous", "general", "severability", "waiver",
+    "amendment", "notices", "counterparts", "interpretation",
+}
+
+
+def _tokenize(text):
+    return set(re.findall(r"[a-zA-Z][a-zA-Z0-9\-]{2,}", text.lower())) - _STOPWORDS
+
+
+def expand_query_keywords(query):
+    """Return strict, legally useful query keywords used by retrieval and gates."""
+    q_lower = query.lower()
+    terms = _tokenize(query)
+    for trigger, additions in _QUERY_EXPANSIONS.items():
+        if trigger in q_lower:
+            terms.update(additions)
+    return {t.lower() for t in terms if len(t) >= 3}
+
+
+def clause_keyword_overlap(query, chunk):
+    """Score whether a chunk actually talks about the user's requested topic."""
+    query_terms = expand_query_keywords(query)
+    if not query_terms:
+        return 0.0
+
+    section_text = f"{chunk.section} {chunk.text[:500]}".lower()
+    hits = 0
+    for term in query_terms:
+        if term in section_text:
+            hits += 1
+    return hits / max(len(query_terms), 1)
+
+
+def _section_priority_bonus(query, chunk):
+    q_lower = query.lower()
+    section = (chunk.section or "").lower()
+    head = chunk.text[:250].lower()
+    bonus = 0.0
+    for trigger, preferred_sections in _SECTION_PRIORITIES.items():
+        if trigger not in q_lower:
+            continue
+        for preferred in preferred_sections:
+            if preferred in section:
+                bonus = max(bonus, 0.35)
+            elif preferred in head:
+                bonus = max(bonus, 0.18)
+    return bonus
+
+
+def _generic_penalty(chunk):
+    section = (chunk.section or "").lower()
+    head = chunk.text[:180].lower()
+    if "entire agreement" in section or "entire agreement" in head:
+        return 0.45
+    if any(term == section.strip() for term in _GENERIC_SECTION_TERMS):
+        return 0.20
+    if any(term in head[:80] for term in _GENERIC_SECTION_TERMS):
+        return 0.15
+    return 0.0
 
 
 class HybridRetriever:
@@ -51,8 +159,14 @@ class HybridRetriever:
         except ImportError:
             pass
 
+    def _expanded_query_text(self, query):
+        keywords = sorted(expand_query_keywords(query))
+        if not keywords:
+            return query
+        return f"{query} " + " ".join(keywords)
+
     def _tfidf_search(self, query, top_k=10):
-        query_vec = self._tfidf.transform([query])
+        query_vec = self._tfidf.transform([self._expanded_query_text(query)])
         scores = cosine_similarity(query_vec, self._tfidf_matrix).flatten()
         top_idx = np.argsort(scores)[::-1][:top_k]
         return [(int(i), float(scores[i])) for i in top_idx if scores[i] > 0]
@@ -76,28 +190,44 @@ class HybridRetriever:
             scores[idx] = scores.get(idx, 0) + 1.0 / (k + rank + 1)
         return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-    def retrieve(self, query, top_k=5):
+    def _rerank(self, query, fused_results):
+        reranked = []
+        for idx, base_score in fused_results:
+            chunk = self.chunks[idx]
+            keyword_score = clause_keyword_overlap(query, chunk)
+            section_bonus = _section_priority_bonus(query, chunk)
+            penalty = _generic_penalty(chunk)
+            final_score = float(base_score) + (0.55 * keyword_score) + section_bonus - penalty
+            reranked.append((idx, final_score, keyword_score, section_bonus, penalty))
+        return sorted(reranked, key=lambda x: x[1], reverse=True)
+
+    def retrieve(self, query, top_k=3, candidate_k=10):
         """
-        Retrieve top-k chunks for the given query.
+        Retrieve candidates, rerank them, and keep the top evidence clauses.
 
         Returns list of dicts:
           {chunk: Chunk, score: float, retrieval_method: str}
         """
-        sparse = self._tfidf_search(query, top_k=top_k * 2)
+        candidate_k = max(candidate_k, top_k * 3, 10)
+        sparse = self._tfidf_search(query, top_k=candidate_k)
 
         if self._dense_model is not None:
-            dense = self._dense_search(query, top_k=top_k * 2)
+            dense = self._dense_search(query, top_k=candidate_k)
             fused = self._rrf_fuse(sparse, dense)
             method = "hybrid_rrf"
         else:
             fused = [(idx, score) for idx, score in sparse]
             method = "tfidf_only"
 
+        reranked = self._rerank(query, fused)
         results = []
-        for idx, score in fused[:top_k]:
+        for idx, score, keyword_score, section_bonus, penalty in reranked[:top_k]:
             results.append({
                 "chunk": self.chunks[idx],
                 "score": score,
                 "retrieval_method": method,
+                "keyword_overlap": round(keyword_score, 3),
+                "section_bonus": round(section_bonus, 3),
+                "generic_penalty": round(penalty, 3),
             })
         return results

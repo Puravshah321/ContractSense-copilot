@@ -188,7 +188,9 @@ def _prompt(clause, query):
         f"[INST] You are ContractSense, a grounded contract analysis system.\n\n"
         f"Evidence:\n[{clause['clause_id']}] ({clause['section']}): {clause['text']}\n\n"
         f"Query: {query}\n\n"
-        f"Rules: Answer ONLY from evidence. If NOT present, say NOT_FOUND. Cite clause_id. [/INST]"
+        f"Rules: Answer ONLY from evidence. If the relevant clause is not found, you MUST return NOT_FOUND. "
+        f"Do NOT escalate. Do NOT guess. For yes/no questions output Answer: YES, Answer: NO, or Answer: NOT_FOUND. "
+        f"Cite clause_id. [/INST]"
     )
 
 def _prompt_multi(clauses, query):
@@ -197,7 +199,8 @@ def _prompt_multi(clauses, query):
         f"[INST] You are ContractSense, a grounded contract analysis system.\n\n"
         f"Evidence:\n{ev}\n\n"
         f"Query: {query}\n\n"
-        f"Rules: Answer ONLY from evidence. If NOT present, say NOT_FOUND. Cite clause_id. [/INST]"
+        f"Rules: Answer ONLY from evidence. If the relevant clause is not found, you MUST return NOT_FOUND. "
+        f"Do NOT guess. ESCALATE only for conflicting evidence. Cite clause_id. [/INST]"
     )
 
 def _prompt_empty(query):
@@ -205,7 +208,8 @@ def _prompt_empty(query):
         f"[INST] You are ContractSense, a grounded contract analysis system.\n\n"
         f"Evidence: No relevant clauses found in the document.\n\n"
         f"Query: {query}\n\n"
-        f"Rules: Answer ONLY from evidence. If NOT present, say NOT_FOUND. [/INST]"
+        f"Rules: Answer ONLY from evidence. If the relevant clause is not found, you MUST return NOT_FOUND. "
+        f"Do NOT escalate. Do NOT guess. For yes/no questions output Answer: NOT_FOUND. [/INST]"
     )
 
 
@@ -436,6 +440,55 @@ def build_dataset_v2():
     # ══════════════════════════════════════════════════════════
     # Multiply + shuffle to reach 500+ pairs
     # ══════════════════════════════════════════════════════════
+    term_clause = {
+        "clause_id": "Section 2.1",
+        "section": "Term",
+        "text": "This Agreement begins on the Effective Date and continues for one (1) year unless earlier terminated in accordance with Section 9.2.",
+    }
+    entire_agreement_clause = {
+        "clause_id": "Section 18.1",
+        "section": "Entire Agreement",
+        "text": "This Agreement constitutes the entire agreement between the parties and supersedes all prior discussions, understandings, and agreements.",
+    }
+    data_india_clause = {
+        "clause_id": "Section 4.2",
+        "section": "Data Protection",
+        "text": "Personal Data shall be processed only within India and shall not be transferred outside India without Controller's prior written consent.",
+    }
+    precision_cases = [
+        {
+            "prompt": _prompt(CLAUSE_BANK[0], "Is there warranty clause?"),
+            "chosen": "Answer: NOT_FOUND\n\nThe provided evidence does not contain a warranty clause.\n\nDECISION: NOT_FOUND",
+            "rejected": "ESCALATE: The evidence is partial, so a warranty clause may exist elsewhere.",
+            "category": "C_absence_detection_precision",
+        },
+        {
+            "prompt": _prompt_empty("Is there warranty clause?"),
+            "chosen": "Answer: NOT_FOUND\n\nNo relevant warranty clause is provided in the evidence.\n\nDECISION: NOT_FOUND",
+            "rejected": "There is a warranty clause requiring standard commercial warranties.\n\nDECISION: ANSWER",
+            "category": "C_absence_detection_precision",
+        },
+        {
+            "prompt": _prompt_multi([term_clause, entire_agreement_clause], "What is the duration of this agreement?"),
+            "chosen": "The agreement lasts one (1) year under Section 2.1 (Term).\n\nDECISION: ANSWER\nCITATION: [Section 2.1, Term]",
+            "rejected": "Based on Section 18.1, the entire agreement clause defines the agreement duration.\n\nDECISION: ANSWER",
+            "category": "B_wrong_retrieval_precision",
+        },
+        {
+            "prompt": _prompt(CLAUSE_BANK[0], "Is warranty clause present?"),
+            "chosen": "Answer: NOT_FOUND\n\nThe retrieved termination evidence does not address warranty.\n\nDECISION: NOT_FOUND",
+            "rejected": "DECISION: ESCALATE",
+            "category": "C_over_escalation_precision",
+        },
+        {
+            "prompt": _prompt(data_india_clause, "Can data be shared outside India?"),
+            "chosen": "Answer: NO\n\nSection 4.2 states that Personal Data shall not be transferred outside India without Controller's prior written consent.\n\nDECISION: ANSWER\nCITATION: [Section 4.2, Data Protection]",
+            "rejected": "Answer: YES\n\nData may be shared outside India under standard commercial data transfer rules.\n\nDECISION: ANSWER",
+            "category": "A_yesno_grounding_precision",
+        },
+    ]
+    rows.extend(precision_cases * 8)
+
     base_count = len(rows)
     if base_count < 500:
         multiplier = max(2, (500 // base_count) + 1)

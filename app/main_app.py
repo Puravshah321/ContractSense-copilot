@@ -111,9 +111,9 @@ def format_result_as_message(result):
     parts.append("")  # spacing
     parts.append(result.answer)
 
-    # Action
+    # Evidence-only action
     if result.action and result.decision != "NOT_FOUND":
-        parts.append(f"\n**Recommended Action:** {result.action}")
+        parts.append(f"\n**Action based ONLY on evidence:** {result.action}")
 
     # Evidence
     if result.evidence:

@@ -70,7 +70,7 @@ class ContractSensePipeline:
         self.document_loaded = True
         return len(self.chunks)
 
-    def query(self, user_query, top_k=5):
+    def query(self, user_query, top_k=3):
         """
         Run the full grounded pipeline for a user query.
 
@@ -99,7 +99,7 @@ class ContractSensePipeline:
 
         # Stage 1: Retrieve
         trace.append("Stage 1: Retrieving relevant clauses...")
-        retrieved = self.retriever.retrieve(user_query, top_k=top_k)
+        retrieved = self.retriever.retrieve(user_query, top_k=top_k, candidate_k=10)
         trace.append(f"  -> Retrieved {len(retrieved)} chunks")
 
         # Stage 2: Evidence sufficiency check
@@ -110,11 +110,11 @@ class ContractSensePipeline:
         # Stage 3: Decision gate
         trace.append("Stage 3: Decision gate...")
         if evidence_check["decision"] == "INSUFFICIENT":
-            trace.append("  -> GATE: Refusing to answer — insufficient evidence")
-        elif evidence_check["decision"] == "PARTIAL":
-            trace.append("  -> GATE: Answering with ESCALATE flag — partial evidence")
+            trace.append("  -> GATE: NOT_FOUND because no relevant clause passed the match check")
+        elif evidence_check["decision"] == "CONFLICTING":
+            trace.append("  -> GATE: ESCALATE because evidence appears conflicting")
         else:
-            trace.append("  -> GATE: Sufficient evidence — generating grounded answer")
+            trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
 
         # Stage 4: Generate grounded answer
         trace.append("Stage 4: Generating grounded answer...")
@@ -142,12 +142,16 @@ class ContractSensePipeline:
 
         # Stage 6: Override if verification fails
         if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
-            trace.append("Stage 6: OVERRIDE — verification rejected, changing to ESCALATE")
-            answer_data["decision"] = "ESCALATE"
-            answer_data["answer"] += (
-                "\n\n**Grounding Warning:** Some claims in this response could not be fully "
-                "verified against the source document. Please review the cited clauses directly."
+            trace.append("Stage 6: OVERRIDE - unsupported answer changed to NOT_FOUND")
+            answer_data["decision"] = "NOT_FOUND"
+            answer_data["confidence"] = "HIGH"
+            answer_data["risk_level"] = "N/A"
+            answer_data["answer"] = (
+                "This is not specified in the provided document. The generated answer was "
+                "not sufficiently supported by the retrieved evidence."
             )
+            answer_data["action"] = ""
+            answer_data["evidence"] = []
 
         latency = (time.time() - start) * 1000
         trace.append(f"Pipeline complete in {latency:.0f}ms")

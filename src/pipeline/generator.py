@@ -8,6 +8,8 @@ Both modes enforce strict grounding: answer ONLY from evidence, cite sources.
 import re
 import json
 
+from src.pipeline.retriever import expand_query_keywords
+
 
 # ============================================================
 # STRICT GROUNDING PROMPT (used in LLM mode)
@@ -17,9 +19,13 @@ SYSTEM_PROMPT = """You are ContractSense, a contract analysis system.
 STRICT RULES:
 1. Use ONLY the provided clause evidence to answer. Do NOT add information not present in the evidence.
 2. If the answer is not contained in the evidence, respond with decision: "NOT_FOUND" and say: "This is not specified in the provided document."
-3. ALWAYS cite the clause_id and quote the exact text you are referencing.
-4. Do NOT generate generic legal advice. Every claim must be traceable to a specific clause.
-5. Classify risk as LOW, MEDIUM, HIGH, or CRITICAL based on the actual clause language.
+3. If the relevant clause is not found, you MUST return NOT_FOUND. Do NOT escalate. Do NOT guess.
+4. NO EVIDENCE means NOT_FOUND, not ESCALATE.
+5. Use ESCALATE only when the provided evidence conflicts or cannot be reconciled.
+6. For yes/no questions, begin the answer with exactly: "Answer: YES", "Answer: NO", or "Answer: NOT_FOUND".
+7. ALWAYS cite the clause_id and quote the exact text you are referencing.
+8. Do NOT generate generic legal advice. Every claim must be traceable to a specific clause.
+9. Classify risk as LOW, MEDIUM, HIGH, or CRITICAL based on the actual clause language.
 
 OUTPUT FORMAT (strict JSON):
 {
@@ -28,7 +34,7 @@ OUTPUT FORMAT (strict JSON):
   "evidence": [{"clause_id": "...", "text": "exact quote from clause"}],
   "confidence": "HIGH | MEDIUM | LOW",
   "decision": "ANSWER | NOT_FOUND | ESCALATE",
-  "action": "Concrete recommended action based on the clause"
+  "action": "Action based ONLY on evidence, or empty string if evidence does not support an action"
 }"""
 
 
@@ -83,24 +89,53 @@ def _detect_risk_level(text):
     return "MEDIUM"
 
 
-_ACTION_TEMPLATES = {
-    "CRITICAL": (
-        "This clause requires immediate legal review. Engage your legal team to negotiate "
-        "amendments before signing. Consider rejecting or significantly modifying this provision."
-    ),
-    "HIGH": (
-        "Review this clause with legal counsel. Negotiate specific carve-outs, caps, or "
-        "modifications to reduce your exposure. Document your negotiation positions."
-    ),
-    "MEDIUM": (
-        "Standard commercial language but verify the specific terms align with your business "
-        "requirements. Consider whether the timeframes, thresholds, or obligations are appropriate."
-    ),
-    "LOW": (
-        "This clause contains standard, balanced terms. No immediate action required, "
-        "but include in your overall contract review checklist."
-    ),
-}
+def _is_yes_no_query(query):
+    return bool(re.match(r"^\s*(is|are|can|could|may|does|do|did|has|have|must|should|will|would)\b", query.lower()))
+
+
+def _evidence_list(evidence_chunks, limit=3):
+    evidence = []
+    for r in evidence_chunks[:limit]:
+        c = r["chunk"]
+        evidence.append({
+            "clause_id": c.clause_id,
+            "section": c.section,
+            "page": c.page,
+            "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
+        })
+    return evidence
+
+
+def _make_evidence_action(evidence_list):
+    if not evidence_list:
+        return ""
+    ev = evidence_list[0]
+    quote = ev.get("text", "").strip()
+    if len(quote) > 180:
+        quote = quote[:180].rsplit(" ", 1)[0] + "..."
+    return f"Review {ev.get('clause_id')} ({ev.get('section')}) because it states: \"{quote}\""
+
+
+def _infer_yes_no(query, evidence_text):
+    q = query.lower()
+    t = evidence_text.lower()
+    if "is there" in q or "does this" in q or "contain" in q or "include" in q or "has " in q:
+        return "YES"
+    negative_patterns = [
+        r"\bshall\s+not\b", r"\bmay\s+not\b", r"\bmust\s+not\b",
+        r"\bnot\s+(?:transfer|share|disclose|assign|use|process|permit)",
+        r"\bprohibited\b", r"\bwithout\s+(?:prior\s+)?written\s+consent\b",
+        r"\bno\s+other\s+warranties\b",
+    ]
+    positive_patterns = [
+        r"\bmay\b", r"\bis\s+permitted\b", r"\bis\s+allowed\b",
+        r"\bshall\b", r"\bwarrants?\b", r"\bagrees?\b",
+    ]
+    if any(re.search(p, t) for p in negative_patterns):
+        return "NO"
+    if any(re.search(p, t) for p in positive_patterns):
+        return "YES"
+    return "YES"
 
 
 def generate_grounded_answer(query, evidence_chunks, evidence_check, mode="rule"):
@@ -116,15 +151,28 @@ def generate_grounded_answer(query, evidence_chunks, evidence_check, mode="rule"
     Returns:
         dict with: answer, risk_level, evidence, confidence, decision, action
     """
-    # DECISION GATE: refuse if evidence is insufficient
+    # DECISION GATE: refuse if evidence is insufficient.
+    # NO EVIDENCE != ESCALATE. No relevant evidence is a high-confidence NOT_FOUND.
     if evidence_check["decision"] == "INSUFFICIENT" or not evidence_chunks:
+        prefix = "Answer: NOT_FOUND\n\n" if evidence_check.get("is_yes_no") or _is_yes_no_query(query) else ""
         return {
-            "answer": "This is not specified in the provided document. The uploaded contract does not contain clauses that address this question.",
+            "answer": prefix + "This is not specified in the provided document. The uploaded contract does not contain clauses that address this question.",
             "risk_level": "N/A",
             "evidence": [],
-            "confidence": "LOW",
+            "confidence": "HIGH",
             "decision": "NOT_FOUND",
-            "action": "Upload a contract that contains relevant clauses, or rephrase your question.",
+            "action": "",
+        }
+
+    if evidence_check["decision"] == "CONFLICTING":
+        evidence = _evidence_list(evidence_chunks)
+        return {
+            "answer": "The retrieved clauses appear to contain conflicting obligations or permissions. Review the cited clauses together before relying on one answer.",
+            "risk_level": "HIGH",
+            "evidence": evidence,
+            "confidence": "MEDIUM",
+            "decision": "ESCALATE",
+            "action": _make_evidence_action(evidence),
         }
 
     if mode == "hf_api":
@@ -137,6 +185,22 @@ def generate_grounded_answer(query, evidence_chunks, evidence_check, mode="rule"
         return _generate_llm_answer(query, evidence_chunks, evidence_check)
 
     return _generate_rule_answer(query, evidence_chunks, evidence_check)
+
+
+def _normalize_answer_data(data, evidence_chunks):
+    evidence = data.get("evidence") or _evidence_list(evidence_chunks)
+    risk = data.get("risk_level", "MEDIUM")
+    decision = data.get("decision", "ANSWER")
+    if decision not in {"ANSWER", "NOT_FOUND", "ESCALATE"}:
+        decision = "ANSWER"
+    return {
+        "answer": data.get("answer", ""),
+        "risk_level": risk,
+        "evidence": evidence,
+        "confidence": data.get("confidence", "MEDIUM"),
+        "decision": decision,
+        "action": data.get("action") or ("" if decision == "NOT_FOUND" else _make_evidence_action(evidence)),
+    }
 
 
 def _generate_hf_api_answer(query, evidence_chunks, evidence_check):
@@ -168,8 +232,9 @@ def _generate_hf_api_answer(query, evidence_chunks, evidence_check):
         f"QUERY: {query}\n\n"
         f"STRICT RULES:\n"
         f"1. Answer ONLY using the Evidence above.\n"
-        f"2. If the answer is not in the evidence, reply with DECISION: NOT_FOUND.\n"
-        f"3. Otherwise, quote the evidence, cite the clause_id, and provide a RISK building.\n"
+        f"2. If the relevant clause is not found, reply with DECISION: NOT_FOUND. Do not escalate or guess.\n"
+        f"3. For yes/no questions, begin with Answer: YES, Answer: NO, or Answer: NOT_FOUND.\n"
+        f"4. Otherwise, quote the evidence, cite the clause_id, and provide a RISK label.\n"
         f"Output in JSON format matching {{'answer': '...', 'decision': 'ANSWER', 'risk_level': 'MEDIUM'}} if possible."
         f"[/INST]"
     )
@@ -214,7 +279,7 @@ def _generate_hf_api_answer(query, evidence_chunks, evidence_check):
                 "evidence": evidence_list,
                 "confidence": "HIGH",
                 "decision": decision,
-                "action": _ACTION_TEMPLATES.get(risk_level, _ACTION_TEMPLATES["MEDIUM"]),
+                "action": _make_evidence_action(evidence_list),
             }
         elif str(resp.status_code).startswith("5"):
             print(f"HF API Model is loading or down (Status {resp.status_code}).")
@@ -271,7 +336,7 @@ def _generate_api_answer(query, evidence_chunks, evidence_check):
                 "evidence": evidence_list,
                 "confidence": "HIGH",
                 "decision": data["decision"],
-                "action": _ACTION_TEMPLATES.get(data["risk_level"], _ACTION_TEMPLATES["MEDIUM"]),
+                "action": _make_evidence_action(evidence_list),
             }
     except Exception as e:
         print(f"API Error: {e}")
@@ -286,21 +351,16 @@ def _generate_rule_answer(query, evidence_chunks, evidence_check):
     risk_level = _detect_risk_level(combined_text)
 
     # Build evidence citations
-    evidence_list = []
-    for r in evidence_chunks[:3]:
-        c = r["chunk"]
-        evidence_list.append({
-            "clause_id": c.clause_id,
-            "section": c.section,
-            "page": c.page,
-            "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
-        })
+    evidence_list = _evidence_list(evidence_chunks)
 
     # Build answer grounded in the actual text
     answer_parts = []
     q_lower = query.lower()
+    expanded_terms = expand_query_keywords(query)
+    is_yes_no = evidence_check.get("is_yes_no") or _is_yes_no_query(query)
 
-    for r in evidence_chunks[:2]:
+    answer_chunks = evidence_chunks[:1] if is_yes_no else evidence_chunks[:2]
+    for r in answer_chunks:
         c = r["chunk"]
         text = c.text.strip()
 
@@ -310,7 +370,7 @@ def _generate_rule_answer(query, evidence_chunks, evidence_check):
         for sent in sentences:
             sent_lower = sent.lower()
             # Check if sentence contains query-relevant terms
-            query_terms = set(re.findall(r"\w{4,}", q_lower))
+            query_terms = set(re.findall(r"\w{4,}", q_lower)) | expanded_terms
             sent_terms = set(re.findall(r"\w{4,}", sent_lower))
             if query_terms & sent_terms or any(kw in sent_lower for kw in [
                 "shall", "must", "may", "will", "right", "obligation",
@@ -330,14 +390,13 @@ def _generate_rule_answer(query, evidence_chunks, evidence_check):
             )
 
     answer = "\n\n".join(answer_parts) if answer_parts else "Evidence found but could not extract a specific answer."
+    if is_yes_no:
+        answer = f"Answer: {_infer_yes_no(query, combined_text)}\n\n{answer}"
 
     confidence = "HIGH" if evidence_check["confidence"] > 0.6 else \
                  "MEDIUM" if evidence_check["confidence"] > 0.3 else "LOW"
 
-    decision = "ANSWER" if evidence_check["decision"] == "SUFFICIENT" else "ESCALATE"
-
-    if decision == "ESCALATE":
-        answer += "\n\n**Note:** The evidence is partial. The above is based on available clauses, but additional contract sections may contain relevant provisions. Consider reviewing the full document."
+    decision = "ANSWER" if evidence_check["decision"] == "SUFFICIENT" else "NOT_FOUND"
 
     return {
         "answer": answer,
@@ -345,7 +404,7 @@ def _generate_rule_answer(query, evidence_chunks, evidence_check):
         "evidence": evidence_list,
         "confidence": confidence,
         "decision": decision,
-        "action": _ACTION_TEMPLATES[risk_level],
+        "action": _make_evidence_action(evidence_list),
     }
 
 
@@ -379,7 +438,7 @@ def _generate_llm_answer(query, evidence_chunks, evidence_check):
         try:
             json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if json_match:
-                return json.loads(json_match.group())
+                return _normalize_answer_data(json.loads(json_match.group()), evidence_chunks)
         except json.JSONDecodeError:
             pass
 

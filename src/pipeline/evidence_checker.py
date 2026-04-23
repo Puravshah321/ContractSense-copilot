@@ -1,9 +1,11 @@
 """
 Evidence Sufficiency Checker.
 Determines if retrieved passages contain enough information to answer the query.
-Returns: SUFFICIENT / PARTIAL / INSUFFICIENT with a confidence score.
+Returns: SUFFICIENT / CONFLICTING / INSUFFICIENT with a confidence score.
 """
 import re
+
+from src.pipeline.retriever import expand_query_keywords, clause_keyword_overlap
 
 
 _QUERY_TYPE_KEYWORDS = {
@@ -46,6 +48,29 @@ def _compute_lexical_overlap(query, evidence_text):
     return len(overlap) / len(q_tokens)
 
 
+def _is_yes_no_query(query):
+    q = query.strip().lower()
+    return bool(re.match(r"^(is|are|can|could|may|does|do|did|has|have|must|should|will|would)\b", q))
+
+
+def _strict_topic_match(query, chunk):
+    """Intent-specific clause match so secondary boost terms do not create false positives."""
+    q = query.lower()
+    text = f"{chunk.section} {chunk.text[:700]}".lower()
+    topic_groups = [
+        (("warranty", "warranties", "guarantee"), ("warranty", "warranties", "warrants", "guarantee", "representations")),
+        (("duration", "how long", "term"), ("duration", "term", "period", "effective", "commencement", "expiration", "expires", "year", "month", "day")),
+        (("outside india", "india"), ("india", "outside india", "cross-border", "transfer")),
+        (("data", "personal data"), ("data", "personal data", "processor", "controller", "privacy")),
+        (("liability", "damages", "cap"), ("liability", "liable", "damages", "cap", "limit", "limitation")),
+        (("termination", "terminate"), ("termination", "terminate", "notice", "breach")),
+    ]
+    for triggers, required_terms in topic_groups:
+        if any(t in q for t in triggers):
+            return any(term in text for term in required_terms)
+    return True
+
+
 def _check_legal_content_signals(evidence_text):
     """Check for presence of legal language indicating substantive content."""
     signals = [
@@ -59,7 +84,27 @@ def _check_legal_content_signals(evidence_text):
     return min(hits / 5.0, 1.0)
 
 
-def check_evidence_sufficiency(query, retrieved_chunks, min_score=0.3):
+def _has_conflicting_evidence(retrieved_chunks):
+    """Conservative contradiction detector. Only escalates when both poles appear."""
+    text = "\n".join(r["chunk"].text.lower() for r in retrieved_chunks)
+    for action in ["assign", "transfer", "disclose", "share", "terminate", "indemnify"]:
+        positive = (
+            re.search(rf"\bmay\s+{action}\b", text)
+            or re.search(rf"\bshall\s+{action}\b", text)
+            or re.search(rf"\b{action}\w*\s+is\s+(?:permitted|allowed)\b", text)
+        )
+        negative = (
+            re.search(rf"\bmay\s+not\s+{action}\b", text)
+            or re.search(rf"\bshall\s+not\s+{action}\b", text)
+            or re.search(rf"\bmust\s+not\s+{action}\b", text)
+            or re.search(rf"\b{action}\w*\s+is\s+prohibited\b", text)
+        )
+        if positive and negative:
+            return True
+    return False
+
+
+def check_evidence_sufficiency(query, retrieved_chunks, min_score=0.28):
     """
     Determine if the retrieved evidence is sufficient to answer the query.
 
@@ -71,12 +116,20 @@ def check_evidence_sufficiency(query, retrieved_chunks, min_score=0.3):
     Returns:
         dict with keys: decision, confidence, reasoning, intent
     """
+    intent = _classify_query_intent(query)
+    query_keywords = sorted(expand_query_keywords(query))
+
     if not retrieved_chunks:
         return {
             "decision": "INSUFFICIENT",
             "confidence": 0.0,
             "reasoning": "No relevant passages were retrieved from the document.",
-            "intent": _classify_query_intent(query),
+            "intent": intent,
+            "has_relevant_clause": False,
+            "relevant_clause_count": 0,
+            "query_keywords": query_keywords,
+            "top_score": 0.0,
+            "is_yes_no": _is_yes_no_query(query),
         }
 
     combined_text = " ".join(r["chunk"].text for r in retrieved_chunks)
@@ -84,23 +137,44 @@ def check_evidence_sufficiency(query, retrieved_chunks, min_score=0.3):
     lexical_overlap = _compute_lexical_overlap(query, combined_text)
     legal_signal = _check_legal_content_signals(combined_text)
     retrieval_score = max(r["score"] for r in retrieved_chunks)
+    clause_matches = [
+        max(float(r.get("keyword_overlap", 0.0)), clause_keyword_overlap(query, r["chunk"]))
+        for r in retrieved_chunks
+    ]
+    best_clause_match = max(clause_matches) if clause_matches else 0.0
+    relevant_clause_count = sum(
+        1
+        for s, r in zip(clause_matches, retrieved_chunks)
+        if s >= 0.18 and _strict_topic_match(query, r["chunk"])
+    )
+    has_relevant_clause = relevant_clause_count > 0
 
     combined_score = (
-        0.35 * lexical_overlap
-        + 0.35 * legal_signal
-        + 0.30 * min(retrieval_score * 2, 1.0)
+        0.40 * best_clause_match
+        + 0.25 * lexical_overlap
+        + 0.15 * legal_signal
+        + 0.20 * min(max(retrieval_score, 0.0), 1.0)
     )
 
-    if combined_score >= min_score * 2:
-        decision = "SUFFICIENT"
-    elif combined_score >= min_score:
-        decision = "PARTIAL"
-    else:
-        decision = "INSUFFICIENT"
+    top_score_threshold = 0.18
+    conflicting_evidence = _has_conflicting_evidence(retrieved_chunks)
 
-    intent = _classify_query_intent(query)
+    # NO EVIDENCE != ESCALATE. If the retrieved text does not actually
+    # contain the user's topic keywords, the correct behavior is NOT_FOUND.
+    if not has_relevant_clause:
+        decision = "INSUFFICIENT"
+    elif retrieval_score < top_score_threshold and combined_score < min_score:
+        decision = "INSUFFICIENT"
+    elif conflicting_evidence:
+        decision = "CONFLICTING"
+    else:
+        decision = "SUFFICIENT"
 
     reasons = []
+    if has_relevant_clause:
+        reasons.append(f"Clause match check passed ({relevant_clause_count} relevant)")
+    else:
+        reasons.append("Clause match check failed")
     if lexical_overlap > 0.5:
         reasons.append("Strong query-evidence term overlap")
     elif lexical_overlap < 0.2:
@@ -109,10 +183,19 @@ def check_evidence_sufficiency(query, retrieved_chunks, min_score=0.3):
         reasons.append("Rich legal content detected in evidence")
     if retrieval_score > 0.3:
         reasons.append(f"High retrieval confidence ({retrieval_score:.2f})")
+    if conflicting_evidence:
+        reasons.append("Potentially conflicting evidence detected")
 
     return {
         "decision": decision,
         "confidence": round(combined_score, 3),
         "reasoning": "; ".join(reasons) if reasons else "Marginal evidence quality",
         "intent": intent,
+        "has_relevant_clause": has_relevant_clause,
+        "relevant_clause_count": relevant_clause_count,
+        "query_keywords": query_keywords,
+        "top_score": round(float(retrieval_score), 3),
+        "clause_match_score": round(float(best_clause_match), 3),
+        "conflicting_evidence": conflicting_evidence,
+        "is_yes_no": _is_yes_no_query(query),
     }
