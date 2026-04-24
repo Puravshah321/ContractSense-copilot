@@ -39,8 +39,8 @@ CACHE_DIR    = os.path.join(os.getcwd(), "hf_cache")
 HF_USERNAME  = "22Jay"
 HF_REPO      = f"{HF_USERNAME}/ContractSense-Grounded-DPO"
 
-BATCH_SIZE   = int(os.environ.get("PER_DEVICE_BATCH_SIZE", "16"))  # RTX Pro 6000 96GB friendly
-GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM", "1"))
+BATCH_SIZE   = int(os.environ.get("PER_DEVICE_BATCH_SIZE", "4"))  # L4 24GB friendly
+GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM", "4"))             # effective batch = 16
 NUM_EPOCHS   = 4
 LR           = 5e-5
 MAX_LEN      = 1024
@@ -48,8 +48,9 @@ MAX_PROMPT   = 512
 LORA_R       = 64
 LORA_ALPHA   = 128
 DPO_BETA     = 0.15
-DATALOADER_WORKERS = min(24, max(4, (os.cpu_count() or 8) // 2))
+DATALOADER_WORKERS = min(4, max(2, (os.cpu_count() or 8) // 2))   # Lightning 8 CPU / 24GB RAM friendly
 SAVE_STEPS   = int(os.environ.get("SAVE_STEPS", "50"))
+RESUME_FROM_CHECKPOINT = os.environ.get("RESUME_FROM_CHECKPOINT", "0") == "1"
 
 
 # ══════════════════════════════════════════════════════════════
@@ -175,6 +176,7 @@ def train_dpo(dataset, output_dir):
         "logging_steps": 5, "save_strategy": "steps", "save_steps": SAVE_STEPS, "save_total_limit": 2,
         "gradient_checkpointing": True, "report_to": "none",
         "remove_unused_columns": False, "group_by_length": True,
+        "optim": "paged_adamw_8bit",
         "dataloader_num_workers": DATALOADER_WORKERS, "dataloader_pin_memory": True,
         "dataloader_persistent_workers": True,
         "gradient_checkpointing_kwargs": {"use_reentrant": False},
@@ -242,9 +244,15 @@ def train_dpo(dataset, output_dir):
 
     print("Starting training...\n")
     t0 = time.time()
-    resume_checkpoint = _latest_checkpoint(output_dir)
+    resume_checkpoint = _latest_checkpoint(output_dir) if RESUME_FROM_CHECKPOINT else None
+    existing_checkpoint = _latest_checkpoint(output_dir)
     if resume_checkpoint:
         print(f"Resuming from checkpoint: {resume_checkpoint}")
+    elif existing_checkpoint:
+        print(
+            f"Found existing checkpoint {existing_checkpoint}, but RESUME_FROM_CHECKPOINT=0. "
+            "Starting a fresh training run."
+        )
     trainer.train(resume_from_checkpoint=resume_checkpoint)
     elapsed = time.time() - t0
     print(f"\nTraining complete in {elapsed/60:.1f} minutes")
@@ -482,6 +490,16 @@ if __name__ == "__main__":
         print(f"Precision pipeline metrics saved -> {precision_path}")
     except Exception as e:
         print(f"Precision pipeline evaluation skipped: {e}")
+
+    try:
+        from evaluate_model_comparison import compare_models, write_comparison_outputs
+        comparison, comparison_cases = compare_models(eval_results)
+        comparison_paths = write_comparison_outputs(comparison, comparison_cases, os.path.join(OUTPUT_DIR, "images"))
+        print("Baseline/Generator/DPO comparison saved:")
+        for path in comparison_paths:
+            print(f"  -> {path}")
+    except Exception as e:
+        print(f"Model comparison evaluation skipped: {e}")
 
     # Step 4: Push
     print("\nStep 4: Pushing to Hugging Face...")

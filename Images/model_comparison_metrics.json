@@ -1,0 +1,199 @@
+{
+  "metrics": {
+    "baseline": {
+      "retrieval_accuracy": 0.8571428571428571,
+      "decision_accuracy": 1.0,
+      "hallucination_rate": 0.42857142857142855,
+      "not_found_accuracy": 1.0,
+      "grounding_accuracy": 0.7142857142857143
+    },
+    "generator": {
+      "retrieval_accuracy": 1.0,
+      "decision_accuracy": 1.0,
+      "hallucination_rate": 0.0,
+      "not_found_accuracy": 1.0,
+      "grounding_accuracy": 1.0
+    },
+    "dpo": {
+      "retrieval_accuracy": null,
+      "decision_accuracy": null,
+      "hallucination_rate": null,
+      "not_found_accuracy": null,
+      "grounding_accuracy": null
+    }
+  },
+  "cases": {
+    "baseline_cases": [
+      {
+        "query": "Is there warranty clause?",
+        "actual_decision": "NOT_FOUND",
+        "expected_decision": "NOT_FOUND",
+        "top_section": null,
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": false,
+        "hallucinated": false,
+        "grounding_ratio": 0.0
+      },
+      {
+        "query": "What is the duration (term) of this agreement?",
+        "actual_decision": "ANSWER",
+        "expected_decision": "ANSWER",
+        "top_section": "Term",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "Can the auditor share confidential data with external teams or third parties?",
+        "actual_decision": "ANSWER",
+        "expected_decision": "ANSWER",
+        "top_section": "Protection of Confidential Information",
+        "retrieval_ok": false,
+        "decision_ok": true,
+        "answer_ok": false,
+        "hallucinated": true,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "Does this agreement allow using audit data for training AI models?",
+        "actual_decision": "ANSWER",
+        "expected_decision": "ANSWER",
+        "top_section": "Protection of Confidential Information",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": false,
+        "hallucinated": true,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "What penalty amount must be paid for breach of contract?",
+        "actual_decision": "ANSWER",
+        "expected_decision": "ANSWER",
+        "top_section": "Remedies",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": false,
+        "hallucinated": true,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "What are the financial commitments in this agreement?",
+        "actual_decision": "ANSWER",
+        "expected_decision": "ANSWER",
+        "top_section": "Financial Commitments",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "Which clause creates the highest compliance burden?",
+        "actual_decision": "NOT_FOUND",
+        "expected_decision": "NOT_FOUND",
+        "top_section": null,
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": false,
+        "hallucinated": false,
+        "grounding_ratio": 0.0
+      }
+    ],
+    "generator_cases": [
+      {
+        "query": "Is there warranty clause?",
+        "expected_decision": "NOT_FOUND",
+        "actual_decision": "NOT_FOUND",
+        "expected_section": null,
+        "top_section": null,
+        "answer": "Answer: NOT_FOUND\n\nThis is not specified in the provided document. The uploaded contract does not contain clauses that address this question.",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "What is the duration (term) of this agreement?",
+        "expected_decision": "ANSWER",
+        "actual_decision": "ANSWER",
+        "expected_section": "Term",
+        "top_section": "Term",
+        "answer": "The agreement is valid up to one year. According to 20. (Term, page 1): 20. Term.\nThis Agreement shall come into force on the date of its signing by both the parties and shall be valid up to one year.",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "Can the auditor share confidential data with external teams or third parties?",
+        "expected_decision": "ANSWER",
+        "actual_decision": "ANSWER",
+        "expected_section": "Need to Know",
+        "top_section": "Need to Know",
+        "answer": "Answer: NO\n\nThe auditor cannot share confidential/audit data with external teams or third parties without the auditee's written approval. The document separately permits sharing audit information with STQC or similar mandated government entities when called upon, with prior written information to the auditee.",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "Does this agreement allow using audit data for training AI models?",
+        "expected_decision": "ANSWER",
+        "actual_decision": "ANSWER",
+        "expected_section": "Protection of Confidential Information",
+        "top_section": "Protection of Confidential Information",
+        "answer": "Answer: NO\n\nThe agreement restricts use of confidential/audit information to the audit scope and prohibits retaining copies or unauthorized disclosure. It does not permit using audit data to train AI models.",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "What penalty amount must be paid for breach of contract?",
+        "expected_decision": "ANSWER",
+        "actual_decision": "ANSWER",
+        "expected_section": "Remedies",
+        "top_section": "Remedies",
+        "answer": "There is no fixed penalty amount stated. The remedies clause says the auditor must compensate the auditee for losses/damages, including actual and liquidated damages, with liquidated damages not to exceed the Contract value.",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "What are the financial commitments in this agreement?",
+        "expected_decision": "ANSWER",
+        "actual_decision": "ANSWER",
+        "expected_section": "Financial Commitments",
+        "top_section": "Financial Commitments",
+        "answer": "Relevant obligations/commitments found:\n1. Financial/Payment: Auditee shall pay the Auditor a fixed audit fee of INR 50,000 after completion of audit fieldwork. [5., Financial Commitments]\n2. Liability/Remedies, Confidentiality: In addition, Auditor shall compensate the Auditee for the loss or damages caused to the auditee, actual and liquidated damages, which may be demanded by Auditee with liquidated damages not to exceed the Contract value. [6., Remedies]",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      },
+      {
+        "query": "Which clause creates the highest compliance burden?",
+        "expected_decision": "NOT_FOUND",
+        "actual_decision": "NOT_FOUND",
+        "expected_section": null,
+        "top_section": null,
+        "answer": "This is not specified in the provided document. The uploaded contract does not contain clauses that address this question.",
+        "retrieval_ok": true,
+        "decision_ok": true,
+        "answer_ok": true,
+        "hallucinated": false,
+        "grounding_ratio": 1.0
+      }
+    ]
+  }
+}

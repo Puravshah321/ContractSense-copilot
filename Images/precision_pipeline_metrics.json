@@ -1,6 +1,6 @@
 {
   "metrics": {
-    "total": 4,
+    "total": 7,
     "retrieval_accuracy": 1.0,
     "decision_accuracy": 1.0,
     "hallucination_rate": 0.0,
@@ -22,12 +22,12 @@
       "grounding_ratio": 1.0
     },
     {
-      "query": "What is the duration of this agreement?",
+      "query": "What is the duration (term) of this agreement?",
       "expected_decision": "ANSWER",
       "actual_decision": "ANSWER",
       "expected_section": "Term",
       "top_section": "Term",
-      "answer": "According to Section 2.1 (Term, page 1): Section 2.1 Term. This Agreement begins on the Effective Date and continues for one (1) year unless earlier terminated in accordance with this Agreement. The parties acknowledge that the one-year term controls the duration of the Agreement and any extension must be signed in writing by both parties.\n\nAccording to Section 9.1 (Termination, page 1): Section 9.1 Termination. Either party may terminate this Agreement for material breach if the breach remains uncured for thirty (30) days after written notice. Upon termination, each party shall return or destroy Confidential Information as requested by the disclosing party.",
+      "answer": "The agreement is valid up to one year. According to 20. (Term, page 1): 20. Term.\nThis Agreement shall come into force on the date of its signing by both the parties and shall be valid up to one year.",
       "retrieval_ok": true,
       "decision_ok": true,
       "answer_ok": true,
@@ -35,12 +35,51 @@
       "grounding_ratio": 1.0
     },
     {
-      "query": "Can data be shared outside India?",
+      "query": "Can the auditor share confidential data with external teams or third parties?",
       "expected_decision": "ANSWER",
       "actual_decision": "ANSWER",
-      "expected_section": "Data Protection",
-      "top_section": "Data Protection",
-      "answer": "Answer: NO\n\nAccording to Section 4.2 (Data Protection, page 1): Section 4.2 Data Protection. Personal Data shall be processed only within India and shall not be transferred outside India without Controller's prior written consent. Processor shall implement appropriate technical and organizational measures to prevent unauthorized access, alteration, disclosure, or destruction of Personal Data.",
+      "expected_section": "Need to Know",
+      "top_section": "Need to Know",
+      "answer": "Answer: NO\n\nThe auditor cannot share confidential/audit data with external teams or third parties without the auditee's written approval. The document separately permits sharing audit information with STQC or similar mandated government entities when called upon, with prior written information to the auditee.",
+      "retrieval_ok": true,
+      "decision_ok": true,
+      "answer_ok": true,
+      "hallucinated": false,
+      "grounding_ratio": 1.0
+    },
+    {
+      "query": "Does this agreement allow using audit data for training AI models?",
+      "expected_decision": "ANSWER",
+      "actual_decision": "ANSWER",
+      "expected_section": "Protection of Confidential Information",
+      "top_section": "Protection of Confidential Information",
+      "answer": "Answer: NO\n\nThe agreement restricts use of confidential/audit information to the audit scope and prohibits retaining copies or unauthorized disclosure. It does not permit using audit data to train AI models.",
+      "retrieval_ok": true,
+      "decision_ok": true,
+      "answer_ok": true,
+      "hallucinated": false,
+      "grounding_ratio": 1.0
+    },
+    {
+      "query": "What penalty amount must be paid for breach of contract?",
+      "expected_decision": "ANSWER",
+      "actual_decision": "ANSWER",
+      "expected_section": "Remedies",
+      "top_section": "Remedies",
+      "answer": "There is no fixed penalty amount stated. The remedies clause says the auditor must compensate the auditee for losses/damages, including actual and liquidated damages, with liquidated damages not to exceed the Contract value.",
+      "retrieval_ok": true,
+      "decision_ok": true,
+      "answer_ok": true,
+      "hallucinated": false,
+      "grounding_ratio": 1.0
+    },
+    {
+      "query": "What are the financial commitments in this agreement?",
+      "expected_decision": "ANSWER",
+      "actual_decision": "ANSWER",
+      "expected_section": "Financial Commitments",
+      "top_section": "Financial Commitments",
+      "answer": "Relevant obligations/commitments found:\n1. Financial/Payment: Auditee shall pay the Auditor a fixed audit fee of INR 50,000 after completion of audit fieldwork. [5., Financial Commitments]\n2. Liability/Remedies, Confidentiality: In addition, Auditor shall compensate the Auditee for the loss or damages caused to the auditee, actual and liquidated damages, which may be demanded by Auditee with liquidated damages not to exceed the Contract value. [6., Remedies]",
       "retrieval_ok": true,
       "decision_ok": true,
       "answer_ok": true,

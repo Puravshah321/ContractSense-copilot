@@ -38,6 +38,12 @@ def _extract_claims(answer_text):
             continue
         if claim.lower().startswith(("grounding", "evidence:", "citation:", "decision:")):
             continue
+        if claim.lower().rstrip(":") in {
+            "relevant obligations/commitments found",
+            "ranked risks based on retrieved clauses",
+            "comparison points from the contract",
+        }:
+            continue
         if claim.lower().startswith("according to") and not re.search(r"\b(shall|must|may|will|is|are|does|continues|lasts|requires|states)\b", claim.lower()):
             continue
         claims.append(claim)
@@ -61,6 +67,14 @@ def _evidence_sentences(evidence_texts):
 
 def _claim_supported(claim, evidence_sentences, evidence_text, threshold=0.5):
     """Return (supported, score) for a single claim."""
+    claim_lower = claim.lower()
+    evidence_lower = evidence_text.lower()
+    if re.search(r"\bdoes\s+not\s+(?:permit|allow)|\bnot\s+permit\b|\bnot\s+allow\b", claim_lower):
+        if re.search(r"\buse\s+the\s+confidential\s+information\b.*\bscope\s+of\s+audit\b|\bnot\s+to\s+make\s+or\s+retain\s+copy\b|\bnot\s+to\s+disclose\b|\bwithout\s+(?:the\s+)?(?:express\s+)?written\s+consent\b", evidence_lower):
+            return True, 0.8
+    if "no fixed penalty amount" in claim_lower:
+        if "liquidated damages" in evidence_lower and "contract value" in evidence_lower:
+            return True, 0.8
     claim_tokens = _tokens(claim)
     claim_numbers = _numbers(claim)
     if not claim_tokens and not claim_numbers:

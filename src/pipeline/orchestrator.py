@@ -12,6 +12,12 @@ from src.pipeline.retriever import HybridRetriever
 from src.pipeline.evidence_checker import check_evidence_sufficiency
 from src.pipeline.generator import generate_grounded_answer
 from src.pipeline.verifier import verify_grounding
+from src.pipeline.query_understanding import classify_query
+from src.pipeline.semantic_filter import filter_and_rerank
+from src.pipeline.answer_controller import (
+    generate_structured_answer,
+    should_use_structured_controller,
+)
 
 
 @dataclass
@@ -25,6 +31,7 @@ class PipelineResult:
     evidence: list
     verification: dict
     evidence_check: dict
+    query_profile: dict
     retrieved_count: int
     chunk_count: int
     latency_ms: float
@@ -91,24 +98,42 @@ class ContractSensePipeline:
                 evidence=[],
                 verification={"verdict": "N/A"},
                 evidence_check={"decision": "INSUFFICIENT"},
+                query_profile={},
                 retrieved_count=0,
                 chunk_count=0,
                 latency_ms=0,
                 pipeline_trace=["ERROR: No document loaded"],
             )
 
-        # Stage 1: Retrieve
-        trace.append("Stage 1: Retrieving relevant clauses...")
-        retrieved = self.retriever.retrieve(user_query, top_k=top_k, candidate_k=10)
-        trace.append(f"  -> Retrieved {len(retrieved)} chunks")
+        # Stage 1: Understand query + retrieve
+        trace.append("Stage 1: Classifying query intent...")
+        query_profile = classify_query(user_query)
+        trace.append(
+            f"  -> Kind: {query_profile.query_kind}, answer_type: {query_profile.answer_type}, "
+            f"concepts: {', '.join(query_profile.concepts)}"
+        )
+
+        trace.append("Stage 2: Retrieving relevant clauses...")
+        retrieval_top_k = max(top_k, query_profile.retrieval_depth if query_profile.allow_multi_clause else 5)
+        retrieved_raw = self.retriever.retrieve(
+            user_query,
+            top_k=retrieval_top_k,
+            candidate_k=max(15, retrieval_top_k * 2),
+        )
+        trace.append(f"  -> Retrieved {len(retrieved_raw)} raw chunks")
+
+        trace.append("Stage 3: Semantic filtering and taxonomy reranking...")
+        retrieved = filter_and_rerank(user_query, retrieved_raw, query_profile)
+        trace.append(f"  -> Kept {len(retrieved)} semantically aligned chunks")
 
         # Stage 2: Evidence sufficiency check
-        trace.append("Stage 2: Checking evidence sufficiency...")
+        trace.append("Stage 4: Checking evidence sufficiency...")
         evidence_check = check_evidence_sufficiency(user_query, retrieved)
+        evidence_check["query_profile"] = query_profile.to_dict()
         trace.append(f"  -> Decision: {evidence_check['decision']} (conf: {evidence_check['confidence']})")
 
         # Stage 3: Decision gate
-        trace.append("Stage 3: Decision gate...")
+        trace.append("Stage 5: Decision gate...")
         if evidence_check["decision"] == "INSUFFICIENT":
             trace.append("  -> GATE: NOT_FOUND because no relevant clause passed the match check")
         elif evidence_check["decision"] == "CONFLICTING":
@@ -117,7 +142,7 @@ class ContractSensePipeline:
             trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
 
         # Stage 4: Generate grounded answer
-        trace.append("Stage 4: Generating grounded answer...")
+        trace.append("Stage 6: Generating answer with answer-type controller...")
         
         import os
         mode = "rule"
@@ -130,19 +155,22 @@ class ContractSensePipeline:
         elif self.use_llm:
             mode = "llm" # Local GPU Fallback
         
-        answer_data = generate_grounded_answer(
-            user_query, retrieved, evidence_check, mode=mode,
-        )
+        if evidence_check["decision"] == "SUFFICIENT" and should_use_structured_controller(query_profile):
+            answer_data = generate_structured_answer(user_query, retrieved, evidence_check, query_profile)
+        else:
+            answer_data = generate_grounded_answer(
+                user_query, retrieved, evidence_check, mode=mode,
+            )
         trace.append(f"  -> Decision: {answer_data['decision']}, Risk: {answer_data['risk_level']}")
 
         # Stage 5: Verify grounding
-        trace.append("Stage 5: Verifying grounding...")
+        trace.append("Stage 7: Verifying grounding...")
         verification = verify_grounding(answer_data, retrieved)
         trace.append(f"  -> Verdict: {verification['verdict']} ({verification['supported_ratio']:.0%} supported)")
 
         # Stage 6: Override if verification fails
         if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
-            trace.append("Stage 6: OVERRIDE - unsupported answer changed to NOT_FOUND")
+            trace.append("Stage 8: OVERRIDE - unsupported answer changed to NOT_FOUND")
             answer_data["decision"] = "NOT_FOUND"
             answer_data["confidence"] = "HIGH"
             answer_data["risk_level"] = "N/A"
@@ -166,6 +194,7 @@ class ContractSensePipeline:
             evidence=answer_data["evidence"],
             verification=verification,
             evidence_check=evidence_check,
+            query_profile=query_profile.to_dict(),
             retrieved_count=len(retrieved),
             chunk_count=len(self.chunks),
             latency_ms=round(latency, 1),

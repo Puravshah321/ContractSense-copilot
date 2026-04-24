@@ -53,20 +53,29 @@ def _is_yes_no_query(query):
     return bool(re.match(r"^(is|are|can|could|may|does|do|did|has|have|must|should|will|would)\b", q))
 
 
+def _trigger_present(trigger, query_lower):
+    if " " in trigger or "-" in trigger:
+        return trigger in query_lower
+    return bool(re.search(rf"\b{re.escape(trigger)}\b", query_lower))
+
+
 def _strict_topic_match(query, chunk):
     """Intent-specific clause match so secondary boost terms do not create false positives."""
     q = query.lower()
     text = f"{chunk.section} {chunk.text[:700]}".lower()
     topic_groups = [
         (("warranty", "warranties", "guarantee"), ("warranty", "warranties", "warrants", "guarantee", "representations")),
-        (("duration", "how long", "term"), ("duration", "term", "period", "effective", "commencement", "expiration", "expires", "year", "month", "day")),
-        (("outside india", "india"), ("india", "outside india", "cross-border", "transfer")),
-        (("data", "personal data"), ("data", "personal data", "processor", "controller", "privacy")),
+        (("duration", "how long", "term"), ("duration", "term", "valid up to", "validity", "effective", "commencement", "expiration", "expires", "year", "month", "day", "date of signing")),
+        (("outside india", "india"), ("india", "outside india", "outside the country", "country", "transfer", "send", "hosted", "taken outside")),
+        (("data", "personal data", "audit data"), ("data", "audit information", "confidential information", "personal data", "processor", "controller", "privacy", "disclose", "use")),
+        (("share", "third part", "external team", "external"), ("share", "disclose", "disclosure", "third party", "other person", "entity", "need to know", "prior written approval", "consent")),
+        (("ai", "training", "model"), ("scope of audit", "audit information", "confidential information", "not to make", "not to disclose", "use the confidential information")),
+        (("penalty", "penalties"), ("liquidated damages", "contract value", "loss or damages", "compensate", "remedies", "breach")),
         (("liability", "damages", "cap"), ("liability", "liable", "damages", "cap", "limit", "limitation")),
         (("termination", "terminate"), ("termination", "terminate", "notice", "breach")),
     ]
     for triggers, required_terms in topic_groups:
-        if any(t in q for t in triggers):
+        if any(_trigger_present(t, q) for t in triggers):
             return any(term in text for term in required_terms)
     return True
 

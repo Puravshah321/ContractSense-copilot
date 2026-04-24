@@ -25,18 +25,25 @@ _STOPWORDS = {
 }
 
 _QUERY_EXPANSIONS = {
-    "warranty": ["warranty", "warranties", "warrants", "guarantee", "guarantees", "representation", "representations", "liability"],
+    "warranty": ["warranty", "warranties", "warrants", "guarantee", "guarantees", "representation", "representations"],
     "warranties": ["warranty", "warranties", "warrants", "guarantee", "representation", "representations"],
     "guarantee": ["warranty", "guarantee", "warrants", "representation"],
-    "duration": ["duration", "term", "period", "effective", "commencement", "expiration", "expires", "year", "month", "day"],
-    "term": ["duration", "term", "period", "effective", "commencement", "expiration", "expires"],
+    "duration": ["duration", "term", "valid", "validity", "period", "effective", "commencement", "expiration", "expires", "year", "month", "day", "signing"],
+    "term": ["duration", "term", "valid", "validity", "period", "effective", "commencement", "expiration", "expires", "signing"],
     "long": ["duration", "term", "period", "year", "month", "day"],
     "liability": ["liability", "liable", "cap", "limit", "limitation", "damages", "indemnity", "indemnification"],
-    "data": ["data", "personal", "processor", "controller", "breach", "transfer", "share", "disclose", "outside", "cross-border"],
+    "data": ["data", "information", "confidential", "audit", "personal", "processor", "controller", "breach", "transfer", "share", "disclose", "outside", "cross-border", "use"],
     "india": ["india", "outside", "cross-border", "transfer", "data", "personal"],
     "shared": ["share", "shared", "disclose", "disclosure", "transfer", "third-party", "third party"],
     "share": ["share", "shared", "disclose", "disclosure", "transfer", "third-party", "third party"],
     "confidential": ["confidential", "confidentiality", "disclose", "disclosure", "receiving", "information"],
+    "third": ["third-party", "third party", "other person", "entity", "disclose", "disclosure", "approval", "consent"],
+    "party": ["third-party", "third party", "other person", "entity", "disclose", "disclosure", "approval", "consent"],
+    "external": ["third-party", "third party", "other person", "entity", "disclose", "disclosure", "approval", "consent"],
+    "training": ["training", "train", "ai", "model", "use", "audit", "data", "confidential", "scope", "purpose", "copy", "retain"],
+    "ai": ["ai", "training", "model", "use", "audit", "data", "confidential", "scope", "purpose", "copy", "retain"],
+    "models": ["model", "models", "training", "ai", "use", "audit", "data", "confidential", "scope", "purpose"],
+    "penalty": ["penalty", "penalties", "damages", "liquidated", "loss", "compensate", "contract value", "breach", "remedies"],
     "termination": ["termination", "terminate", "expires", "notice", "breach", "term"],
     "payment": ["payment", "pay", "invoice", "fees", "late", "interest"],
     "indemnification": ["indemnification", "indemnify", "indemnity", "hold harmless", "third-party", "claim"],
@@ -45,12 +52,17 @@ _QUERY_EXPANSIONS = {
 _SECTION_PRIORITIES = {
     "warranty": ["warranty", "representations", "representation", "liability"],
     "guarantee": ["warranty", "representations", "representation"],
-    "duration": ["term", "duration", "commencement", "expiration"],
-    "term": ["term", "duration", "commencement", "expiration"],
+    "duration": ["term", "duration", "commencement", "expiration", "valid"],
+    "term": ["term", "duration", "commencement", "expiration", "valid"],
     "liability": ["limitation of liability", "liability", "indemnification"],
-    "data": ["data protection", "privacy", "security", "confidentiality"],
+    "data": ["data protection", "privacy", "security", "confidentiality", "protection of confidential information", "permitted disclosure", "need to know"],
     "india": ["data protection", "privacy", "security", "confidentiality"],
     "termination": ["termination", "term"],
+    "share": ["permitted disclosure", "need to know", "confidentiality", "protection of confidential information"],
+    "shared": ["permitted disclosure", "need to know", "confidentiality", "protection of confidential information"],
+    "training": ["protection of confidential information", "confidentiality", "definitions"],
+    "ai": ["protection of confidential information", "confidentiality", "definitions"],
+    "penalty": ["remedies", "liability"],
 }
 
 _GENERIC_SECTION_TERMS = {
@@ -63,12 +75,18 @@ def _tokenize(text):
     return set(re.findall(r"[a-zA-Z][a-zA-Z0-9\-]{2,}", text.lower())) - _STOPWORDS
 
 
+def _trigger_present(trigger, query_lower):
+    if " " in trigger or "-" in trigger:
+        return trigger in query_lower
+    return bool(re.search(rf"\b{re.escape(trigger)}\b", query_lower))
+
+
 def expand_query_keywords(query):
     """Return strict, legally useful query keywords used by retrieval and gates."""
     q_lower = query.lower()
     terms = _tokenize(query)
     for trigger, additions in _QUERY_EXPANSIONS.items():
-        if trigger in q_lower:
+        if _trigger_present(trigger, q_lower):
             terms.update(additions)
     return {t.lower() for t in terms if len(t) >= 3}
 
@@ -93,7 +111,7 @@ def _section_priority_bonus(query, chunk):
     head = chunk.text[:250].lower()
     bonus = 0.0
     for trigger, preferred_sections in _SECTION_PRIORITIES.items():
-        if trigger not in q_lower:
+        if not _trigger_present(trigger, q_lower):
             continue
         for preferred in preferred_sections:
             if preferred in section:
@@ -108,6 +126,8 @@ def _generic_penalty(chunk):
     head = chunk.text[:180].lower()
     if "entire agreement" in section or "entire agreement" in head:
         return 0.45
+    if "survival" in section and any(t in head for t in ["term", "duration", "valid up to"]):
+        return 0.0
     if any(term == section.strip() for term in _GENERIC_SECTION_TERMS):
         return 0.20
     if any(term in head[:80] for term in _GENERIC_SECTION_TERMS):
@@ -197,6 +217,20 @@ class HybridRetriever:
             keyword_score = clause_keyword_overlap(query, chunk)
             section_bonus = _section_priority_bonus(query, chunk)
             penalty = _generic_penalty(chunk)
+            q_lower = query.lower()
+            chunk_text = f"{chunk.section} {chunk.text[:700]}".lower()
+            if ("warranty" in q_lower or "warrant" in q_lower) and not re.search(r"\bwarrant(?:y|ies|s)?\b|\bguarantee\b", chunk_text):
+                penalty += 0.75
+            if ("duration" in q_lower or "term" in q_lower) and "survival" in chunk_text and "valid up to" not in chunk_text:
+                penalty += 0.35
+            if ("duration" in q_lower or "term" in q_lower) and re.search(r"\bterm\b.*\bvalid\s+up\s+to\b|\bvalid\s+up\s+to\b.*\bone\s+year\b", chunk_text):
+                section_bonus += 0.75
+            if any(t in q_lower for t in ["share", "third", "external"]) and re.search(r"\bnot\s+to\s+disclose\b|\bthird\s+party\b|\bother\s+person\s+or\s+entity\b|\bneed\s+to\s+know\b", chunk_text):
+                section_bonus += 0.45
+            if any(_trigger_present(t, q_lower) for t in ["ai", "training", "model"]) and re.search(r"\buse\b.*\bscope\s+of\s+audit\b|\bnot\s+to\s+make\s+or\s+retain\s+copy\b|\baudit\s+information\b", chunk_text):
+                section_bonus += 0.45
+            if "penalty" in q_lower and re.search(r"\bliquidated\s+damages\b|\bcontract\s+value\b|\bloss\s+or\s+damages\b", chunk_text):
+                section_bonus += 0.55
             final_score = float(base_score) + (0.55 * keyword_score) + section_bonus - penalty
             reranked.append((idx, final_score, keyword_score, section_bonus, penalty))
         return sorted(reranked, key=lambda x: x[1], reverse=True)

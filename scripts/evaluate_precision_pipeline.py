@@ -20,20 +20,41 @@ from src.pipeline.orchestrator import ContractSensePipeline
 
 
 SAMPLE_CONTRACT = """
-Section 2.1 Term.
-This Agreement begins on the Effective Date and continues for one (1) year unless earlier terminated in accordance with this Agreement. The parties acknowledge that the one-year term controls the duration of the Agreement and any extension must be signed in writing by both parties.
+1. Definitions.
+The term "Confidential Information" shall include all information and materials furnished by either Party, including Results of any information security audits, tests, analysis, extracts or usages carried out by the Auditor in connection with the Auditee's products and/or services, IT infrastructure, etc.
 
-Section 3.1 Confidentiality.
-Each party shall protect Confidential Information using reasonable care and shall not disclose Confidential Information to third parties except to employees and advisors who need to know it for the permitted purpose. These confidentiality duties survive termination for three (3) years.
+2. Protection of Confidential Information.
+Auditor shall use the Confidential Information as necessary only in connection with scope of audit and in accordance with the terms and conditions contained herein. Auditor shall not make or retain copy of any details of results of any information security audits, tests, analysis, extracts or usages carried out by the Auditor without the express written consent of Auditee. Auditor shall not disclose or in any way assist or permit the disclosure of any Confidential Information to any other person or entity without the express written consent of the auditee. Auditor shall not send Auditee's audit information or data and/or any such Confidential Information at any time outside India for the purpose of storage, processing, analysis or handling without the express written consent of the Auditee.
 
-Section 4.2 Data Protection.
-Personal Data shall be processed only within India and shall not be transferred outside India without Controller's prior written consent. Processor shall implement appropriate technical and organizational measures to prevent unauthorized access, alteration, disclosure, or destruction of Personal Data.
+4. Permitted disclosure of audit related information.
+The auditor may share audit information with STQC or similar Government entities mandated under the law as and when called upon to do so by such agencies with prior written information to the auditee.
 
-Section 9.1 Termination.
-Either party may terminate this Agreement for material breach if the breach remains uncured for thirty (30) days after written notice. Upon termination, each party shall return or destroy Confidential Information as requested by the disclosing party.
+5. Financial Commitments.
+Auditee shall pay the Auditor a fixed audit fee of INR 50,000 after completion of audit fieldwork. No commission is payable under this Agreement.
 
-Section 18.1 Entire Agreement.
-This Agreement constitutes the entire agreement between the parties and supersedes all prior discussions, understandings, purchase orders, and proposals. No amendment is effective unless it is in writing and signed by both parties.
+6. Remedies.
+Auditor acknowledges that any actual or threatened disclosure or use of the Confidential Information by Auditor would be a breach of this agreement and may cause immediate and irreparable harm to Auditee or to its clients. In addition, Auditor shall compensate the Auditee for the loss or damages caused to the auditee, actual and liquidated damages, which may be demanded by Auditee with liquidated damages not to exceed the Contract value.
+
+7. Need to Know.
+Auditor shall restrict disclosure of such Confidential Information to its employees and/or consultants with a need to know, shall use the Confidential Information only for the purposes set forth in the Agreement, and shall not disclose such Confidential Information to any affiliates, subsidiaries, associates and/or third party without prior written approval of the Auditee. No Information relating to auditee shall be hosted or taken outside the country in any circumstances.
+
+8. Audit Records.
+Auditor shall maintain audit records and processing logs for inspection. These records do not create any fee, commission, or payment obligation.
+
+9. No Conflict.
+The parties represent and warrant that the performance of its obligations hereunder do not and shall not conflict with any other agreement or obligation of the respective parties.
+
+12. Entire Agreement.
+This Agreement constitutes the entire understanding and agreement between the parties, and supersedes all previous or contemporaneous agreement or communications.
+
+17. Survival.
+Both parties agree that all of their obligations undertaken herein with respect to Confidential Information received pursuant to this Agreement shall survive till perpetuity even after expiration or termination of this Agreement.
+
+18. Non-solicitation.
+During the term of this Agreement and thereafter for a further period of two (2) years Auditor shall not solicit or attempt to solicit Auditee's employees and/or consultants.
+
+20. Term.
+This Agreement shall come into force on the date of its signing by both the parties and shall be valid up to one year.
 """
 
 
@@ -45,16 +66,34 @@ EVAL_CASES = [
         "expected_answer_contains": "NOT_FOUND",
     },
     {
-        "query": "What is the duration of this agreement?",
+        "query": "What is the duration (term) of this agreement?",
         "expected_decision": "ANSWER",
         "expected_section": "Term",
-        "expected_answer_contains": "one (1) year",
+        "expected_answer_contains": "one year",
     },
     {
-        "query": "Can data be shared outside India?",
+        "query": "Can the auditor share confidential data with external teams or third parties?",
         "expected_decision": "ANSWER",
-        "expected_section": "Data Protection",
+        "expected_section": "Need to Know",
         "expected_answer_contains": "Answer: NO",
+    },
+    {
+        "query": "Does this agreement allow using audit data for training AI models?",
+        "expected_decision": "ANSWER",
+        "expected_section": "Protection of Confidential Information",
+        "expected_answer_contains": "Answer: NO",
+    },
+    {
+        "query": "What penalty amount must be paid for breach of contract?",
+        "expected_decision": "ANSWER",
+        "expected_section": "Remedies",
+        "expected_answer_contains": "no fixed penalty amount",
+    },
+    {
+        "query": "What are the financial commitments in this agreement?",
+        "expected_decision": "ANSWER",
+        "expected_section": "Financial Commitments",
+        "expected_answer_contains": "INR 50,000",
     },
     {
         "query": "Which clause creates the highest compliance burden?",

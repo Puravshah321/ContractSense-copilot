@@ -33,8 +33,8 @@ _SECTION_RE = re.compile(
 )
 
 _HEADING_RE = re.compile(
-    r"^(?:section|article|clause|part|schedule|exhibit|annex|appendix)"
-    r"\s+[\d\.]+\s*[\-\:\.]?\s*(.+)",
+    r"^(?:(?:section|article|clause|part|schedule|exhibit|annex|appendix)"
+    r"\s+[\d\.]+|\d+(?:\.\d+)*)\s*[\-\:\.]?\s*(.+)",
     re.IGNORECASE,
 )
 
@@ -43,9 +43,11 @@ _CLAUSE_KEYWORDS = [
     "force majeure", "governing law", "warranty", "payment", "non-compete",
     "non-solicitation", "data protection", "insurance", "assignment", "dispute",
     "arbitration", "notice", "amendment", "waiver", "severability", "renewal",
+    "term", "remedies", "permitted disclosure", "need to know", "survival",
+    "non-solicitation", "governing law", "authority", "no conflict",
 ]
 
-MIN_CHUNK_TOKENS = 30
+MIN_CHUNK_TOKENS = 8
 MAX_CHUNK_TOKENS = 400
 TARGET_CHUNK_TOKENS = 250
 
@@ -69,6 +71,7 @@ def _detect_section_name(text):
 def _detect_clause_id(text):
     patterns = [
         r"((?:Section|Article|Clause)\s+\d+(?:\.\d+)*)",
+        r"^(\d+(?:\.\d+)*\.)",
         r"^(\d+\.\d+(?:\.\d+)*)",
         r"^(\(\w+\))",
     ]
@@ -88,7 +91,7 @@ def _split_into_paragraphs(text):
         if not block:
             continue
         sub_splits = re.split(
-            r"\n(?=(?:Section|Article|Clause|ARTICLE|SECTION)\s+\d)",
+            r"\n(?=(?:Section|Article|Clause|ARTICLE|SECTION)\s+\d|\d{1,2}\.\s+[A-Z])",
             block,
         )
         for s in sub_splits:

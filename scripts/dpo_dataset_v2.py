@@ -455,6 +455,36 @@ def build_dataset_v2():
         "section": "Data Protection",
         "text": "Personal Data shall be processed only within India and shall not be transferred outside India without Controller's prior written consent.",
     }
+    nda_remedies_clause = {
+        "clause_id": "Clause 6",
+        "section": "Remedies",
+        "text": "Auditor shall compensate the Auditee for the loss or damages caused to the auditee, actual and liquidated damages, with liquidated damages not to exceed the Contract value.",
+    }
+    nda_term_clause = {
+        "clause_id": "Clause 20",
+        "section": "Term",
+        "text": "This Agreement shall come into force on the date of its signing by both the parties and shall be valid up to one year.",
+    }
+    nda_confidentiality_clause = {
+        "clause_id": "Clause 2",
+        "section": "Protection of Confidential Information",
+        "text": "Auditor shall use the Confidential Information as necessary only in connection with scope of audit. Auditor shall not disclose or in any way assist or permit the disclosure of any Confidential Information to any other person or entity without the express written consent of the auditee. Auditor shall not make or retain copies of audit results without express written consent.",
+    }
+    nda_permitted_disclosure_clause = {
+        "clause_id": "Clause 4",
+        "section": "Permitted Disclosure",
+        "text": "The auditor may share audit information with STQC or similar Government entities mandated under the law as and when called upon to do so by such agencies with prior written information to the auditee.",
+    }
+    payment_clause = {
+        "clause_id": "Section 5.4",
+        "section": "Payment",
+        "text": "Client shall pay Vendor a monthly service fee of USD 10,000 and a 3% commission on net subscription revenue. All invoices are due within thirty (30) days of receipt.",
+    }
+    audit_record_clause = {
+        "clause_id": "Section 9.8",
+        "section": "Audit Records",
+        "text": "Vendor shall maintain complete audit logs and records of processing activities for regulatory inspection. These audit records do not create payment, fee, commission, or reimbursement obligations.",
+    }
     precision_cases = [
         {
             "prompt": _prompt(CLAUSE_BANK[0], "Is there warranty clause?"),
@@ -485,6 +515,48 @@ def build_dataset_v2():
             "chosen": "Answer: NO\n\nSection 4.2 states that Personal Data shall not be transferred outside India without Controller's prior written consent.\n\nDECISION: ANSWER\nCITATION: [Section 4.2, Data Protection]",
             "rejected": "Answer: YES\n\nData may be shared outside India under standard commercial data transfer rules.\n\nDECISION: ANSWER",
             "category": "A_yesno_grounding_precision",
+        },
+        {
+            "prompt": _prompt(nda_remedies_clause, "Is there any warranty clause in this agreement?"),
+            "chosen": "Answer: NOT_FOUND\n\nClause 6 is a remedies/damages clause, not a warranty clause. The provided evidence does not contain warranty language.\n\nDECISION: NOT_FOUND",
+            "rejected": "Answer: YES\n\nClause 6 creates a warranty because it discusses breach, damages, and remedies.\n\nDECISION: ANSWER",
+            "category": "C_absence_detection_precision",
+        },
+        {
+            "prompt": _prompt_multi([nda_term_clause, {"clause_id": "Clause 17", "section": "Survival", "text": "Confidentiality obligations survive till perpetuity even after expiration or termination of this Agreement."}], "What is the duration (term) of this agreement?"),
+            "chosen": "The agreement is valid up to one year under Clause 20 (Term).\n\nDECISION: ANSWER\nCITATION: [Clause 20, Term]",
+            "rejected": "The agreement lasts in perpetuity because Clause 17 says confidentiality obligations survive forever.\n\nDECISION: ANSWER",
+            "category": "B_wrong_retrieval_precision",
+        },
+        {
+            "prompt": _prompt_multi([nda_confidentiality_clause, nda_permitted_disclosure_clause], "Can the auditor share confidential data with external teams or third parties?"),
+            "chosen": "Answer: NO\n\nThe auditor may not disclose Confidential Information to other persons or entities without the auditee's express written consent. A separate narrow exception allows sharing audit information with STQC or similar mandated government entities when called upon, with prior written information to the auditee.\n\nDECISION: ANSWER\nCITATION: [Clause 2, Protection of Confidential Information], [Clause 4, Permitted Disclosure]",
+            "rejected": "Answer: NOT_FOUND\n\nThe agreement does not specify whether confidential data can be shared.\n\nDECISION: NOT_FOUND",
+            "category": "A_yesno_grounding_precision",
+        },
+        {
+            "prompt": _prompt(nda_confidentiality_clause, "Does this agreement allow using audit data for training AI models?"),
+            "chosen": "Answer: NO\n\nThe evidence restricts use of Confidential Information to the audit scope and prohibits retaining copies or unauthorized disclosure. It does not permit use of audit data for AI model training.\n\nDECISION: ANSWER\nCITATION: [Clause 2, Protection of Confidential Information]",
+            "rejected": "Answer: NOT_FOUND\n\nAI model training is not mentioned, so no answer can be given.\n\nDECISION: NOT_FOUND",
+            "category": "A_yesno_grounding_precision",
+        },
+        {
+            "prompt": _prompt(nda_remedies_clause, "What penalty amount must be paid for breach of contract?"),
+            "chosen": "There is no fixed penalty amount stated. Clause 6 provides compensation for losses/damages, including actual and liquidated damages, with liquidated damages not to exceed the Contract value.\n\nDECISION: ANSWER\nCITATION: [Clause 6, Remedies]",
+            "rejected": "The penalty amount is exactly the full Contract value and must always be paid for any breach.\n\nDECISION: ANSWER",
+            "category": "A_correct_grounding_precision",
+        },
+        {
+            "prompt": _prompt_multi([payment_clause, audit_record_clause], "What are the financial commitments in this agreement?"),
+            "chosen": "Financial commitments:\n1. Client must pay a monthly service fee of USD 10,000.\n2. Client must pay a 3% commission on net subscription revenue.\n3. Invoices are due within thirty (30) days.\n\nDECISION: ANSWER\nCITATION: [Section 5.4, Payment]",
+            "rejected": "The agreement's financial commitments are audit logs and processing records under Section 9.8.\n\nDECISION: ANSWER\nCITATION: [Section 9.8, Audit Records]",
+            "category": "A_structured_synthesis_precision",
+        },
+        {
+            "prompt": _prompt(audit_record_clause, "What are the financial commitments in this agreement?"),
+            "chosen": "The provided audit-record evidence does not create payment, fee, commission, or reimbursement obligations.\n\nDECISION: NOT_FOUND",
+            "rejected": "The audit record clause creates financial commitments because it mentions audit and processing.\n\nDECISION: ANSWER",
+            "category": "C_absence_detection_precision",
         },
     ]
     rows.extend(precision_cases * 8)

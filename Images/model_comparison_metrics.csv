@@ -1,0 +1,4 @@
+model,retrieval_accuracy,decision_accuracy,hallucination_rate,not_found_accuracy,grounding_accuracy
+baseline,0.8571428571428571,1.0,0.42857142857142855,1.0,0.7142857142857143
+generator,1.0,1.0,0.0,1.0,1.0
+dpo,,,,,
