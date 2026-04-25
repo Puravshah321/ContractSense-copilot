@@ -13,7 +13,9 @@ from src.pipeline.evidence_checker import check_evidence_sufficiency
 from src.pipeline.generator import generate_grounded_answer
 from src.pipeline.verifier import verify_grounding
 from src.pipeline.query_understanding import classify_query
+from src.pipeline.query_decomposer import decompose_query
 from src.pipeline.semantic_filter import filter_and_rerank
+from src.pipeline.coverage_model import assess_coverage
 from src.pipeline.answer_controller import (
     generate_structured_answer,
     should_use_structured_controller,
@@ -32,6 +34,8 @@ class PipelineResult:
     verification: dict
     evidence_check: dict
     query_profile: dict
+    coverage: dict
+    sub_queries: list
     retrieved_count: int
     chunk_count: int
     latency_ms: float
@@ -99,6 +103,8 @@ class ContractSensePipeline:
                 verification={"verdict": "N/A"},
                 evidence_check={"decision": "INSUFFICIENT"},
                 query_profile={},
+                coverage={},
+                sub_queries=[user_query],
                 retrieved_count=0,
                 chunk_count=0,
                 latency_ms=0,
@@ -113,17 +119,50 @@ class ContractSensePipeline:
             f"concepts: {', '.join(query_profile.concepts)}"
         )
 
+        is_factual_path = query_profile.query_kind == "factual" and query_profile.answer_type in {"yes_no", "fact"}
+        is_analytical_path = not is_factual_path
+
+        sub_queries = [user_query]
+        if is_analytical_path:
+            trace.append("Stage 1B: Decomposing analytical query...")
+            sub_queries = decompose_query(user_query, query_profile)
+            trace.append(f"  -> Generated {len(sub_queries)} sub-queries")
+
         trace.append("Stage 2: Retrieving relevant clauses...")
-        retrieval_top_k = max(top_k, query_profile.retrieval_depth if query_profile.allow_multi_clause else 5)
-        retrieved_raw = self.retriever.retrieve(
-            user_query,
-            top_k=retrieval_top_k,
-            candidate_k=max(15, retrieval_top_k * 2),
-        )
-        trace.append(f"  -> Retrieved {len(retrieved_raw)} raw chunks")
+        if is_factual_path:
+            retrieval_top_k = max(3, min(5, top_k))
+            raw_candidates = self.retriever.retrieve(
+                user_query,
+                top_k=retrieval_top_k,
+                candidate_k=max(12, retrieval_top_k * 2),
+            )
+        else:
+            retrieval_top_k = max(query_profile.retrieval_depth, top_k, 8)
+            raw_candidates = []
+            for sq in sub_queries:
+                part = self.retriever.retrieve(
+                    sq,
+                    top_k=retrieval_top_k,
+                    candidate_k=max(20, retrieval_top_k * 3),
+                )
+                for item in part:
+                    enriched = dict(item)
+                    enriched["sub_query"] = sq
+                    raw_candidates.append(enriched)
+
+        # Deduplicate by clause identity while preserving the best score.
+        by_clause = {}
+        for item in raw_candidates:
+            chunk = item["chunk"]
+            key = (chunk.clause_id, chunk.section, chunk.page)
+            if key not in by_clause or float(item.get("score", 0.0)) > float(by_clause[key].get("score", 0.0)):
+                by_clause[key] = item
+        retrieved_raw = sorted(by_clause.values(), key=lambda x: float(x.get("score", 0.0)), reverse=True)
+        trace.append(f"  -> Retrieved {len(retrieved_raw)} unique raw chunks")
 
         trace.append("Stage 3: Semantic filtering and taxonomy reranking...")
-        retrieved = filter_and_rerank(user_query, retrieved_raw, query_profile)
+        keep_k = 3 if is_factual_path else 8
+        retrieved = filter_and_rerank(user_query, retrieved_raw, query_profile, keep_k=keep_k)
         trace.append(f"  -> Kept {len(retrieved)} semantically aligned chunks")
 
         # Stage 2: Evidence sufficiency check
@@ -132,12 +171,25 @@ class ContractSensePipeline:
         evidence_check["query_profile"] = query_profile.to_dict()
         trace.append(f"  -> Decision: {evidence_check['decision']} (conf: {evidence_check['confidence']})")
 
+        trace.append("Stage 4B: Coverage-based sufficiency model...")
+        coverage = assess_coverage(query_profile, retrieved, sub_queries=sub_queries)
+        trace.append(
+            f"  -> Coverage: {coverage['coverage_ratio']:.0%} ({coverage['decision']}); "
+            f"missing: {', '.join(coverage['missing_aspects']) if coverage['missing_aspects'] else 'none'}"
+        )
+
         # Stage 3: Decision gate
         trace.append("Stage 5: Decision gate...")
-        if evidence_check["decision"] == "INSUFFICIENT":
-            trace.append("  -> GATE: NOT_FOUND because no relevant clause passed the match check")
-        elif evidence_check["decision"] == "CONFLICTING":
+        analytical_partial = False
+        if evidence_check["decision"] == "CONFLICTING":
             trace.append("  -> GATE: ESCALATE because evidence appears conflicting")
+        elif is_factual_path and evidence_check["decision"] == "INSUFFICIENT":
+            trace.append("  -> GATE: NOT_FOUND (strict factual mode)")
+        elif is_analytical_path and evidence_check["decision"] == "INSUFFICIENT" and coverage["decision"] == "PARTIAL":
+            analytical_partial = True
+            trace.append("  -> GATE: PARTIAL analytical coverage accepted; will answer with explicit gaps")
+        elif evidence_check["decision"] == "INSUFFICIENT":
+            trace.append("  -> GATE: NOT_FOUND because no relevant clause passed the match check")
         else:
             trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
 
@@ -154,13 +206,26 @@ class ContractSensePipeline:
             trace.append("  -> Routing query to Lightning AI GPU API...")
         elif self.use_llm:
             mode = "llm" # Local GPU Fallback
-        
-        if evidence_check["decision"] == "SUFFICIENT" and should_use_structured_controller(query_profile):
-            answer_data = generate_structured_answer(user_query, retrieved, evidence_check, query_profile)
+
+        effective_evidence_check = dict(evidence_check)
+        if analytical_partial:
+            effective_evidence_check["decision"] = "SUFFICIENT"
+            effective_evidence_check["confidence"] = max(float(effective_evidence_check.get("confidence", 0.0)), 0.35)
+
+        if effective_evidence_check["decision"] == "SUFFICIENT" and should_use_structured_controller(query_profile):
+            answer_data = generate_structured_answer(user_query, retrieved, effective_evidence_check, query_profile)
         else:
             answer_data = generate_grounded_answer(
-                user_query, retrieved, evidence_check, mode=mode,
+                user_query, retrieved, effective_evidence_check, mode=mode,
             )
+
+        if is_analytical_path and analytical_partial and answer_data["decision"] == "ANSWER":
+            if coverage["missing_aspects"]:
+                missing = ", ".join(coverage["missing_aspects"])
+                answer_data["answer"] += (
+                    f"\n\nCoverage gaps: the current evidence does not fully cover these aspects: {missing}."
+                )
+            answer_data["confidence"] = "MEDIUM"
         trace.append(f"  -> Decision: {answer_data['decision']}, Risk: {answer_data['risk_level']}")
 
         # Stage 5: Verify grounding
@@ -195,6 +260,8 @@ class ContractSensePipeline:
             verification=verification,
             evidence_check=evidence_check,
             query_profile=query_profile.to_dict(),
+            coverage=coverage,
+            sub_queries=sub_queries,
             retrieved_count=len(retrieved),
             chunk_count=len(self.chunks),
             latency_ms=round(latency, 1),

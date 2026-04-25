@@ -23,12 +23,43 @@ from transformers import (
 from trl import DPOTrainer
 
 random.seed(42)
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 try:
     torch.set_float32_matmul_precision("high")
 except Exception:
     pass
+
+
+def _configure_lightning_runtime_profile():
+    """Set sane defaults for Lightning GPU training, optimized for NVIDIA L4."""
+    cpu_workers = min(4, max(2, (os.cpu_count() or 8) // 2))
+    os.environ.setdefault("DATALOADER_WORKERS", str(cpu_workers))
+
+    if not torch.cuda.is_available():
+        print("CUDA not available; running in CPU profile.")
+        return
+
+    gpu_name = torch.cuda.get_device_name(0)
+    os.environ.setdefault("LIGHTNING_GPU_NAME", gpu_name)
+    gpu_name_upper = gpu_name.upper()
+
+    if "L4" in gpu_name_upper:
+        os.environ.setdefault("PER_DEVICE_BATCH_SIZE", "4")
+        os.environ.setdefault("GRAD_ACCUM", "4")
+        os.environ.setdefault("SAVE_STEPS", "50")
+        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+        print("Runtime profile: NVIDIA L4 (24GB) tuned defaults applied.")
+    else:
+        os.environ.setdefault("PER_DEVICE_BATCH_SIZE", "2")
+        os.environ.setdefault("GRAD_ACCUM", "8")
+        os.environ.setdefault("SAVE_STEPS", "75")
+        print(f"Runtime profile: generic CUDA ({gpu_name}) defaults applied.")
+
+
+_configure_lightning_runtime_profile()
 
 # ══════════════════════════════════════════════════════════════
 # CONFIG
@@ -48,7 +79,7 @@ MAX_PROMPT   = 512
 LORA_R       = 64
 LORA_ALPHA   = 128
 DPO_BETA     = 0.15
-DATALOADER_WORKERS = min(4, max(2, (os.cpu_count() or 8) // 2))   # Lightning 8 CPU / 24GB RAM friendly
+DATALOADER_WORKERS = int(os.environ.get("DATALOADER_WORKERS", str(min(4, max(2, (os.cpu_count() or 8) // 2)))))
 SAVE_STEPS   = int(os.environ.get("SAVE_STEPS", "50"))
 RESUME_FROM_CHECKPOINT = os.environ.get("RESUME_FROM_CHECKPOINT", "0") == "1"
 
@@ -73,6 +104,70 @@ def _safe_kwargs(cls_or_fn, candidates):
     if valid is None:
         return candidates
     return {k: v for k, v in candidates.items() if k in valid}
+
+
+def _load_4bit_base_model():
+    """
+    L4-safe 4-bit loader.
+
+    Avoids `device_map="auto"` first because auto-placement can trigger low-level
+    memory mapping/offload issues on some managed environments.
+    """
+    print("Loading base model (4-bit NF4)...")
+    bnb = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_use_double_quant=True,
+    )
+
+    load_attempts = [
+        {
+            "quantization_config": bnb,
+            "device_map": {"": 0},
+            "torch_dtype": torch.bfloat16,
+            "low_cpu_mem_usage": True,
+            "cache_dir": CACHE_DIR,
+            "attn_implementation": "sdpa",
+        },
+        {
+            "quantization_config": bnb,
+            "device_map": {"": 0},
+            "torch_dtype": torch.bfloat16,
+            "low_cpu_mem_usage": True,
+            "cache_dir": CACHE_DIR,
+        },
+        {
+            "quantization_config": bnb,
+            "device_map": "auto",
+            "torch_dtype": torch.bfloat16,
+            "low_cpu_mem_usage": True,
+            "cache_dir": CACHE_DIR,
+        },
+    ]
+
+    last_error = None
+    for idx, attempt in enumerate(load_attempts, 1):
+        try:
+            print(f"  -> Load attempt {idx} with device_map={attempt.get('device_map')}")
+            model = AutoModelForCausalLM.from_pretrained(
+                BASE_MODEL,
+                trust_remote_code=True,
+                **_safe_kwargs(AutoModelForCausalLM.from_pretrained, attempt),
+            )
+            model.config.use_cache = False
+            return model
+        except Exception as e:
+            last_error = e
+            print(f"  -> Attempt {idx} failed: {type(e).__name__}: {e}")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            time.sleep(2)
+
+    raise RuntimeError(
+        "Unable to load the 4-bit base model on this environment. "
+        "Clear hf_cache and retry, or verify bitsandbytes/transformers compatibility."
+    ) from last_error
 
 
 def _latest_checkpoint(output_dir):
@@ -136,16 +231,7 @@ def train_dpo(dataset, output_dir):
     tokenizer.padding_side = "left"
 
     # ── Model (4-bit NF4 for L4 24GB)
-    print("Loading base model (4-bit NF4)...")
-    bnb = BitsAndBytesConfig(
-        load_in_4bit=True, bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_use_double_quant=True,
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL, quantization_config=bnb, device_map="auto",
-        trust_remote_code=True, cache_dir=CACHE_DIR, attn_implementation="sdpa",
-    )
-    model.config.use_cache = False
+    model = _load_4bit_base_model()
 
     prep_kw = _safe_kwargs(prepare_model_for_kbit_training, {"use_gradient_checkpointing": True})
     model = prepare_model_for_kbit_training(model, **prep_kw)
@@ -453,6 +539,127 @@ def push_to_hf(adapter_dir):
 # ══════════════════════════════════════════════════════════════
 # 5. MAIN
 # ══════════════════════════════════════════════════════════════
+
+def _write_run_summary(output_dir, summary):
+    summary_path = os.path.join(output_dir, "run_summary.md")
+    lines = [
+        "# ContractSense Lightning Run Summary",
+        "",
+        f"- Dataset pairs: {summary.get('dataset_size')}",
+        f"- Output dir: `{summary.get('output_dir')}`",
+        f"- HF repo: `{summary.get('hf_repo')}`",
+        f"- Eval results: `{summary.get('eval_path')}`",
+        f"- Precision metrics: `{summary.get('precision_path')}`",
+        "",
+        "## DPO Metrics",
+    ]
+    eval_results = summary.get("eval_results", {})
+    for key in ["decision_accuracy", "hallucination_rate", "not_found_accuracy", "grounding_accuracy"]:
+        if key in eval_results:
+            lines.append(f"- {key}: {eval_results[key]:.4f}")
+
+    comparison = summary.get("comparison", {})
+    if comparison:
+        lines.extend(["", "## Model Comparison"])
+        for model_name in ["baseline", "generator", "dpo"]:
+            metrics = comparison.get(model_name, {})
+            if not metrics:
+                continue
+            pretty = ", ".join(
+                f"{metric}={value:.4f}" for metric, value in metrics.items() if isinstance(value, (int, float))
+            )
+            lines.append(f"- {model_name}: {pretty}")
+
+    lines.extend(["", "## Artifacts"])
+    for path in summary.get("artifact_paths", []):
+        lines.append(f"- `{path}`")
+
+    with open(summary_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"Run summary saved -> {summary_path}")
+    return summary_path
+
+
+def run_full_pipeline(output_dir=OUTPUT_DIR, push=True):
+    os.makedirs(output_dir, exist_ok=True)
+    artifact_paths = []
+
+    print("Step 1: Building research-grade DPO dataset...")
+    dataset = build_dataset()
+
+    print(f"\nStep 2: Training DPO ({len(dataset)} pairs)...")
+    trainer, model, tokenizer = train_dpo(dataset, output_dir)
+
+    print("\nStep 3: Running evaluation...")
+    eval_samples = random.sample(dataset, min(60, len(dataset)))
+    eval_results = evaluate_model(model, tokenizer, eval_samples)
+
+    eval_path = os.path.join(output_dir, "eval_results.json")
+    with open(eval_path, "w", encoding="utf-8") as f:
+        json.dump(eval_results, f, indent=2)
+    artifact_paths.append(eval_path)
+    print(f"Eval results saved -> {eval_path}")
+
+    print("\nStep 3B: Generating evaluation charts...")
+    artifact_paths.extend(generate_eval_charts(eval_results, output_dir))
+
+    precision_metrics = None
+    precision_rows = None
+    precision_path = None
+    try:
+        from evaluate_precision_pipeline import evaluate as evaluate_precision_pipeline
+        from evaluate_precision_pipeline import write_outputs as write_precision_outputs
+        precision_metrics, precision_rows = evaluate_precision_pipeline()
+        precision_output_dir = os.path.join(output_dir, "images")
+        write_precision_outputs(precision_metrics, precision_rows, precision_output_dir)
+        precision_path = os.path.join(output_dir, "precision_pipeline_metrics.json")
+        with open(precision_path, "w", encoding="utf-8") as f:
+            json.dump({"metrics": precision_metrics, "cases": precision_rows}, f, indent=2)
+        artifact_paths.append(precision_path)
+        print(f"Precision pipeline metrics saved -> {precision_path}")
+    except Exception as e:
+        print(f"Precision pipeline evaluation skipped: {e}")
+
+    comparison = {}
+    comparison_cases = {}
+    try:
+        from evaluate_model_comparison import compare_models, write_comparison_outputs
+        comparison, comparison_cases = compare_models(eval_results)
+        comparison_paths = write_comparison_outputs(comparison, comparison_cases, os.path.join(output_dir, "images"))
+        artifact_paths.extend(comparison_paths)
+        print("Baseline/Generator/DPO comparison saved:")
+        for path in comparison_paths:
+            print(f"  -> {path}")
+    except Exception as e:
+        print(f"Model comparison evaluation skipped: {e}")
+
+    final_path = os.path.join(output_dir, "final")
+    if push:
+        print("\nStep 4: Pushing to Hugging Face...")
+        del trainer, model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        import gc
+        gc.collect()
+        time.sleep(2)
+        push_to_hf(final_path)
+
+    summary = {
+        "dataset_size": len(dataset),
+        "output_dir": output_dir,
+        "hf_repo": HF_REPO,
+        "eval_path": eval_path,
+        "eval_results": eval_results,
+        "precision_path": precision_path,
+        "precision_metrics": precision_metrics,
+        "comparison": comparison,
+        "comparison_cases": comparison_cases,
+        "artifact_paths": artifact_paths,
+        "pushed_to_hub": bool(push),
+    }
+    summary["summary_path"] = _write_run_summary(output_dir, summary)
+    return summary
+
 
 if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)
