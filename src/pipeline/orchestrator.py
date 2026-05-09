@@ -305,10 +305,23 @@ class ContractSensePipeline:
             answer_data["decision"] = "NOT_FOUND"
             answer_data["confidence"] = "HIGH"
             answer_data["risk_level"] = "N/A"
-            answer_data["answer"] = (
-                "This is not specified in the provided document. The generated answer was "
-                "not sufficiently supported by the retrieved evidence."
-            )
+            
+            missing_items = coverage.get("missing_aspects", [])
+            clean_aspects = [m.replace("_", " ").title() for m in missing_items if m != "general"]
+            
+            if clean_aspects:
+                bullet_points = "\n".join([f"• No explicit clause found for: {m}" for m in clean_aspects])
+                answer_data["answer"] = (
+                    f"{bullet_points}\n\n"
+                    "The retrieved evidence was insufficient to determine a grounded answer. "
+                    "The generated claims were rejected to prevent hallucination."
+                )
+            else:
+                answer_data["answer"] = (
+                    "This is not specified in the provided document. The generated answer was "
+                    "not sufficiently supported by the retrieved evidence."
+                )
+                
             answer_data["action"] = ""
             answer_data["evidence"] = []
 
