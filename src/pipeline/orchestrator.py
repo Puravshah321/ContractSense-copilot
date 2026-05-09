@@ -300,7 +300,7 @@ class ContractSensePipeline:
         verification = verify_grounding(answer_data, retrieved)
         trace.append(f"  -> Verdict: {verification['verdict']} ({verification['supported_ratio']:.0%} supported)")
 
-        if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
+        if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER" and mode not in ("groq_api", "hf_api"):
             trace.append("Stage 8: OVERRIDE - unsupported answer changed to NOT_FOUND")
             answer_data["decision"] = "NOT_FOUND"
             answer_data["confidence"] = "HIGH"

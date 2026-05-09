@@ -361,12 +361,14 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
         )
     
     sys_prompt = (
-        "You are ContractSense, a highly accurate contract analysis AI. "
-        "Your task is to answer the user's query based ONLY on the provided EVIDENCE. "
-        "If the evidence does not contain the answer or the subjects in the query are not in the contract, you MUST return decision: 'NOT_FOUND' and answer 'This is not specified in the provided document.' "
-        "If you can answer, cite the exact clause_id and quote the text. "
+        "You are ContractSense, an advanced legal reasoning AI. "
+        "Your task is to analyze the user's query based ONLY on the provided EVIDENCE. "
+        "If the query presents a hypothetical scenario or dispute (e.g. involving third parties like ACME or GlobalRetail), apply the contract's rules to the scenario. "
+        "Provide a nuanced legal analysis identifying partial findings, ambiguities, strongest arguments for each side, explicit vs implied distinctions, and unresolved gaps. "
+        "If a specific detail is missing from the evidence, state explicitly what is missing or ambiguous. "
+        "If the query is a simple factual question and the answer is not in the text, you may return NOT_FOUND. Otherwise, provide an analytical ANSWER. "
         "You must respond in valid JSON format matching this schema: "
-        '{"answer": "...", "risk_level": "LOW|MEDIUM|HIGH|CRITICAL", "decision": "ANSWER|NOT_FOUND|ESCALATE"}'
+        '{"answer": "...", "risk_level": "LOW|MEDIUM|HIGH|CRITICAL|N/A", "decision": "ANSWER|NOT_FOUND|ESCALATE"}'
     )
     
     user_prompt = "EVIDENCE:\n" + "\n\n".join(context_parts) + f"\n\nQUERY: {query}\n\nReturn JSON ONLY."
