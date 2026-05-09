@@ -1,7 +1,7 @@
 """
 ContractSense V2 — Research-Grade DPO Training + Eval + Push
 =============================================================
-Single file for Lightning AI L4 GPU.
+Single file for Lightning AI GPU (L4 / RTX / A-series friendly).
 Run: python lightning_train_v2.py
 
 Does everything:
@@ -12,6 +12,7 @@ Does everything:
 """
 
 import inspect, json, os, random, time, warnings
+import re
 warnings.filterwarnings("ignore")
 
 import torch
@@ -33,10 +34,55 @@ except Exception:
     pass
 
 
+def _bool_env(name, default=False):
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return str(val).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _gpu_capability():
+    if not torch.cuda.is_available():
+        return 0, 0
+    try:
+        return torch.cuda.get_device_capability(0)
+    except Exception:
+        return 0, 0
+
+
+def _bf16_supported():
+    if not torch.cuda.is_available():
+        return False
+    if hasattr(torch.cuda, "is_bf16_supported"):
+        try:
+            return bool(torch.cuda.is_bf16_supported())
+        except Exception:
+            pass
+    major, _ = _gpu_capability()
+    return major >= 8
+
+
+def _train_dtype_flags():
+    use_bf16 = _bf16_supported()
+    # Explicit override knobs for special setups.
+    if _bool_env("FORCE_FP16", False):
+        use_bf16 = False
+    if _bool_env("FORCE_BF16", False):
+        use_bf16 = True
+    return use_bf16, (not use_bf16)
+
+
+def _quant_compute_dtype():
+    return torch.bfloat16 if _bf16_supported() else torch.float16
+
+
 def _configure_lightning_runtime_profile():
-    """Set sane defaults for Lightning GPU training, optimized for NVIDIA L4."""
-    cpu_workers = min(4, max(2, (os.cpu_count() or 8) // 2))
+    """Set runtime defaults tuned for Lightning GPUs, including RTX P6000 profiles."""
+    cpu_total = os.cpu_count() or 8
+    cpu_workers = min(40, max(8, cpu_total - 8))
     os.environ.setdefault("DATALOADER_WORKERS", str(cpu_workers))
+    os.environ.setdefault("OMP_NUM_THREADS", str(min(32, cpu_total)))
+    os.environ.setdefault("MKL_NUM_THREADS", str(min(32, cpu_total)))
 
     if not torch.cuda.is_available():
         print("CUDA not available; running in CPU profile.")
@@ -45,6 +91,7 @@ def _configure_lightning_runtime_profile():
     gpu_name = torch.cuda.get_device_name(0)
     os.environ.setdefault("LIGHTNING_GPU_NAME", gpu_name)
     gpu_name_upper = gpu_name.upper()
+    bf16_ok = _bf16_supported()
 
     if "L4" in gpu_name_upper:
         os.environ.setdefault("PER_DEVICE_BATCH_SIZE", "4")
@@ -52,11 +99,19 @@ def _configure_lightning_runtime_profile():
         os.environ.setdefault("SAVE_STEPS", "50")
         os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
         print("Runtime profile: NVIDIA L4 (24GB) tuned defaults applied.")
-    else:
-        os.environ.setdefault("PER_DEVICE_BATCH_SIZE", "2")
+    elif "P6000" in gpu_name_upper:
+        os.environ.setdefault("PER_DEVICE_BATCH_SIZE", "3")
         os.environ.setdefault("GRAD_ACCUM", "8")
+        os.environ.setdefault("SAVE_STEPS", "50")
+        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+        print("Runtime profile: RTX P6000 tuned defaults applied (high-throughput, fp16-safe).")
+    else:
+        os.environ.setdefault("PER_DEVICE_BATCH_SIZE", "4")
+        os.environ.setdefault("GRAD_ACCUM", "6")
         os.environ.setdefault("SAVE_STEPS", "75")
         print(f"Runtime profile: generic CUDA ({gpu_name}) defaults applied.")
+
+    print(f"Precision profile: {'bf16' if bf16_ok else 'fp16'} training path.")
 
 
 _configure_lightning_runtime_profile()
@@ -70,7 +125,7 @@ CACHE_DIR    = os.path.join(os.getcwd(), "hf_cache")
 HF_USERNAME  = "22Jay"
 HF_REPO      = f"{HF_USERNAME}/ContractSense-Grounded-DPO"
 
-BATCH_SIZE   = int(os.environ.get("PER_DEVICE_BATCH_SIZE", "4"))  # L4 24GB friendly
+BATCH_SIZE   = int(os.environ.get("PER_DEVICE_BATCH_SIZE", "4"))  # GPU profile default, env-overridable
 GRAD_ACCUM   = int(os.environ.get("GRAD_ACCUM", "4"))             # effective batch = 16
 NUM_EPOCHS   = 4
 LR           = 5e-5
@@ -82,6 +137,7 @@ DPO_BETA     = 0.15
 DATALOADER_WORKERS = int(os.environ.get("DATALOADER_WORKERS", str(min(4, max(2, (os.cpu_count() or 8) // 2)))))
 SAVE_STEPS   = int(os.environ.get("SAVE_STEPS", "50"))
 RESUME_FROM_CHECKPOINT = os.environ.get("RESUME_FROM_CHECKPOINT", "0") == "1"
+USE_BF16, USE_FP16 = _train_dtype_flags()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -117,7 +173,7 @@ def _load_4bit_base_model():
     bnb = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_compute_dtype=_quant_compute_dtype(),
         bnb_4bit_use_double_quant=True,
     )
 
@@ -125,7 +181,7 @@ def _load_4bit_base_model():
         {
             "quantization_config": bnb,
             "device_map": {"": 0},
-            "torch_dtype": torch.bfloat16,
+            "torch_dtype": _quant_compute_dtype(),
             "low_cpu_mem_usage": True,
             "cache_dir": CACHE_DIR,
             "attn_implementation": "sdpa",
@@ -133,14 +189,14 @@ def _load_4bit_base_model():
         {
             "quantization_config": bnb,
             "device_map": {"": 0},
-            "torch_dtype": torch.bfloat16,
+            "torch_dtype": _quant_compute_dtype(),
             "low_cpu_mem_usage": True,
             "cache_dir": CACHE_DIR,
         },
         {
             "quantization_config": bnb,
             "device_map": "auto",
-            "torch_dtype": torch.bfloat16,
+            "torch_dtype": _quant_compute_dtype(),
             "low_cpu_mem_usage": True,
             "cache_dir": CACHE_DIR,
         },
@@ -201,12 +257,105 @@ def build_dataset():
     try:
         from dpo_dataset_v2 import build_dataset_v2, print_stats
         rows = build_dataset_v2()
+        rows = _augment_intent_dataset(rows)
         print_stats(rows)
+        print(f"Intent-augmented rows: {len(rows)}")
         return rows
     except ImportError:
         print("ERROR: dpo_dataset_v2.py not found in same directory!")
         print("Please copy it next to this script on Lightning AI.")
         raise
+
+
+def _extract_query_from_prompt(prompt):
+    match = re.search(r"Query:\s*(.+?)\n\nRules:", prompt, flags=re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return ""
+
+
+def _replace_query_in_prompt(prompt, new_query):
+    if "Query:" in prompt and "\n\nRules:" in prompt:
+        return re.sub(r"Query:\s*(.+?)\n\nRules:", f"Query: {new_query}\n\nRules:", prompt, flags=re.DOTALL)
+    return prompt
+
+
+def _intent_variants(query):
+    q = query.strip().rstrip("?")
+    variants = [
+        ("factual", f"What clause directly addresses: {q}?"),
+        ("yes_no", f"Is this explicitly stated in the contract: {q}?"),
+        ("analytical", f"Analyze {q} by combining all relevant clauses and summarize key obligations."),
+        ("extraction", f"List all clauses relevant to: {q}."),
+    ]
+    # Keep unique while preserving order.
+    seen = set()
+    out = []
+    for label, v in variants:
+        key = v.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((label, v))
+    return out
+
+
+def _augment_intent_dataset(rows):
+    """Expand dataset with intent-diverse prompts and stronger contrastive negatives."""
+    augmented = list(rows)
+    # Use a stable subset to avoid exploding dataset size.
+    base_rows = [r for r in rows if r.get("category", "").startswith("A_")][:220]
+
+    for row in base_rows:
+        q = _extract_query_from_prompt(row.get("prompt", ""))
+        if not q:
+            continue
+        for intent_label, qv in _intent_variants(q):
+            prompt = _replace_query_in_prompt(row["prompt"], qv)
+            chosen = row["chosen"]
+            rejected = row["rejected"]
+
+            if intent_label == "analytical":
+                if "DECISION:" not in chosen:
+                    chosen = chosen + "\n\nDECISION: ANSWER"
+                chosen = (
+                    "Structured findings from contract evidence:\n"
+                    f"- Finding: {chosen}\n"
+                    "- Impact: Contractual obligations identified from cited clauses.\n"
+                    "- Risk level: MEDIUM"
+                )
+                rejected = (
+                    "General legal commentary without concept grouping or clause-grounded synthesis."
+                )
+            elif intent_label == "extraction":
+                chosen = (
+                    "Extracted relevant clauses from evidence:\n"
+                    + re.sub(r"\s+", " ", chosen)[:260]
+                )
+                rejected = "Narrative summary without listing concrete clauses."
+
+            augmented.append(
+                {
+                    "prompt": prompt,
+                    "chosen": chosen,
+                    "rejected": rejected,
+                    "category": f"F_intent_{intent_label}",
+                }
+            )
+
+        # Add explicit concept-confusion negative for alignment training.
+        augmented.append(
+            {
+                "prompt": _replace_query_in_prompt(row["prompt"], f"What are the financial commitments related to: {q}?"),
+                "chosen": row["chosen"],
+                "rejected": (
+                    "This answer focuses on audit/process clauses and ignores direct financial obligations, fees, and payment terms."
+                ),
+                "category": "G_concept_alignment_negative",
+            }
+        )
+
+    return augmented
 
 
 # ══════════════════════════════════════════════════════════════
@@ -258,7 +407,8 @@ def train_dpo(dataset, output_dir):
         "output_dir": output_dir, "num_train_epochs": NUM_EPOCHS,
         "per_device_train_batch_size": BATCH_SIZE, "per_device_eval_batch_size": BATCH_SIZE,
         "gradient_accumulation_steps": GRAD_ACCUM, "learning_rate": LR,
-        "lr_scheduler_type": "cosine", "warmup_ratio": 0.05, "bf16": True,
+        "lr_scheduler_type": "cosine", "warmup_ratio": 0.05,
+        "bf16": USE_BF16, "fp16": USE_FP16,
         "logging_steps": 5, "save_strategy": "steps", "save_steps": SAVE_STEPS, "save_total_limit": 2,
         "gradient_checkpointing": True, "report_to": "none",
         "remove_unused_columns": False, "group_by_length": True,
@@ -554,7 +704,10 @@ def _write_run_summary(output_dir, summary):
         "## DPO Metrics",
     ]
     eval_results = summary.get("eval_results", {})
-    for key in ["decision_accuracy", "hallucination_rate", "not_found_accuracy", "grounding_accuracy"]:
+    for key in [
+        "decision_accuracy", "hallucination_rate", "not_found_accuracy", "grounding_accuracy",
+        "intent_alignment_accuracy", "structure_match_accuracy", "concept_purity_score",
+    ]:
         if key in eval_results:
             lines.append(f"- {key}: {eval_results[key]:.4f}")
 

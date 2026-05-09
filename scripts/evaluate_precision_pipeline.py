@@ -61,42 +61,49 @@ This Agreement shall come into force on the date of its signing by both the part
 EVAL_CASES = [
     {
         "query": "Is there warranty clause?",
+        "expected_intent": "yes_no",
         "expected_decision": "NOT_FOUND",
         "expected_section": None,
         "expected_answer_contains": "NOT_FOUND",
     },
     {
         "query": "What is the duration (term) of this agreement?",
+        "expected_intent": "factual",
         "expected_decision": "ANSWER",
         "expected_section": "Term",
         "expected_answer_contains": "one year",
     },
     {
         "query": "Can the auditor share confidential data with external teams or third parties?",
+        "expected_intent": "yes_no",
         "expected_decision": "ANSWER",
         "expected_section": "Need to Know",
         "expected_answer_contains": "Answer: NO",
     },
     {
         "query": "Does this agreement allow using audit data for training AI models?",
+        "expected_intent": "yes_no",
         "expected_decision": "ANSWER",
         "expected_section": "Protection of Confidential Information",
         "expected_answer_contains": "Answer: NO",
     },
     {
         "query": "What penalty amount must be paid for breach of contract?",
+        "expected_intent": "factual",
         "expected_decision": "ANSWER",
         "expected_section": "Remedies",
         "expected_answer_contains": "no fixed penalty amount",
     },
     {
         "query": "What are the financial commitments in this agreement?",
+        "expected_intent": "analytical",
         "expected_decision": "ANSWER",
         "expected_section": "Financial Commitments",
         "expected_answer_contains": "INR 50,000",
     },
     {
         "query": "Which clause creates the highest compliance burden?",
+        "expected_intent": "extraction",
         "expected_decision": "NOT_FOUND",
         "expected_section": None,
         "expected_answer_contains": "not specified",
@@ -110,6 +117,42 @@ def _top_section(result):
     return result.evidence[0].get("section")
 
 
+def _expected_answer_type(intent):
+    return {
+        "yes_no": "yes_no",
+        "factual": "fact",
+        "analytical": "list",
+        "extraction": "extraction",
+        "risk": "risk_table",
+    }.get(intent, "fact")
+
+
+def _structure_ok(expected_intent, answer):
+    a = (answer or "").lower()
+    if expected_intent == "yes_no":
+        return a.startswith("answer: yes") or a.startswith("answer: no") or a.startswith("answer: not_found")
+    if expected_intent == "analytical":
+        return "structured findings" in a or "relevant obligations" in a or "finding (" in a
+    if expected_intent == "extraction":
+        return "extracted relevant clauses" in a or "clause" in a
+    return len(a.strip()) > 0
+
+
+def _concept_purity(query, top_section, answer):
+    q = query.lower()
+    sec = (top_section or "").lower()
+    ans = (answer or "").lower()
+    if "financial" in q:
+        return float(any(k in sec or k in ans for k in ["financial", "payment", "fee", "commission", "invoice"]))
+    if "warranty" in q:
+        return float("warranty" in sec or "warranty" in ans)
+    if "data" in q or "confidential" in q:
+        return float(any(k in sec or k in ans for k in ["confidential", "data", "protection", "need to know"]))
+    if "term" in q or "duration" in q:
+        return float("term" in sec or "one year" in ans)
+    return 1.0
+
+
 def evaluate():
     pipeline = ContractSensePipeline()
     pipeline.load_document(SAMPLE_CONTRACT, "precision_eval_contract.txt")
@@ -118,6 +161,11 @@ def evaluate():
     for case in EVAL_CASES:
         result = pipeline.query(case["query"], top_k=3)
         top_section = _top_section(result)
+        actual_answer_type = (result.query_profile or {}).get("answer_type")
+        expected_answer_type = _expected_answer_type(case.get("expected_intent", "factual"))
+        intent_ok = actual_answer_type == expected_answer_type or (
+            case.get("expected_intent") == "factual" and actual_answer_type in {"fact", "yes_no"}
+        )
         retrieval_ok = bool((
             case["expected_section"] is None
             and result.decision == "NOT_FOUND"
@@ -129,9 +177,15 @@ def evaluate():
         decision_ok = result.decision == case["expected_decision"]
         answer_ok = case["expected_answer_contains"].lower() in result.answer.lower()
         hallucinated = result.decision == "ANSWER" and not answer_ok
+        structure_ok = _structure_ok(case.get("expected_intent", "factual"), result.answer)
+        concept_purity = _concept_purity(case["query"], top_section, result.answer)
 
         rows.append({
             "query": case["query"],
+            "expected_intent": case.get("expected_intent", "factual"),
+            "expected_answer_type": expected_answer_type,
+            "actual_answer_type": actual_answer_type,
+            "intent_ok": intent_ok,
             "expected_decision": case["expected_decision"],
             "actual_decision": result.decision,
             "expected_section": case["expected_section"],
@@ -140,6 +194,8 @@ def evaluate():
             "retrieval_ok": retrieval_ok,
             "decision_ok": decision_ok,
             "answer_ok": answer_ok,
+            "structure_ok": structure_ok,
+            "concept_purity": concept_purity,
             "hallucinated": hallucinated,
             "grounding_ratio": result.verification.get("supported_ratio", 0.0),
         })
@@ -153,6 +209,9 @@ def evaluate():
         "hallucination_rate": sum(r["hallucinated"] for r in rows) / total,
         "not_found_accuracy": sum(r["actual_decision"] == "NOT_FOUND" for r in not_found_rows) / max(len(not_found_rows), 1),
         "average_grounding_ratio": sum(r["grounding_ratio"] for r in rows) / total,
+        "intent_alignment_accuracy": sum(r["intent_ok"] for r in rows) / total,
+        "structure_match_accuracy": sum(r["structure_ok"] for r in rows) / total,
+        "concept_purity_score": sum(r["concept_purity"] for r in rows) / total,
     }
     return metrics, rows
 
@@ -171,14 +230,17 @@ def write_outputs(metrics, rows, output_dir):
         return []
 
     image_paths = []
-    labels = ["retrieval", "decision", "not_found", "grounding"]
+    labels = ["retrieval", "decision", "not_found", "grounding", "intent", "structure", "concept_purity"]
     values = [
         metrics["retrieval_accuracy"],
         metrics["decision_accuracy"],
         metrics["not_found_accuracy"],
         metrics["average_grounding_ratio"],
+        metrics["intent_alignment_accuracy"],
+        metrics["structure_match_accuracy"],
+        metrics["concept_purity_score"],
     ]
-    colors = ["#2563EB", "#059669", "#DC2626", "#7C3AED"]
+    colors = ["#2563EB", "#059669", "#DC2626", "#7C3AED", "#0EA5E9", "#F59E0B", "#10B981"]
 
     fig, ax = plt.subplots(figsize=(9, 5))
     ax.bar(labels, values, color=colors)

@@ -5,10 +5,16 @@ Upload PDF -> Auto risk scan -> Chat with evidence + citations.
 import streamlit as st
 import sys
 import time
+import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.pipeline.orchestrator import ContractSensePipeline
+
+
+def _build_pipeline():
+    use_llm = os.environ.get("FORCE_LOCAL_LLM", "0") == "1"
+    return ContractSensePipeline(use_llm=use_llm)
 
 st.set_page_config(
     page_title="ContractSense",
@@ -67,7 +73,7 @@ footer {visibility: hidden;}
 
 # ── Session State ──
 if "pipeline" not in st.session_state:
-    st.session_state.pipeline = ContractSensePipeline()
+    st.session_state.pipeline = _build_pipeline()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pdf_name" not in st.session_state:
@@ -189,7 +195,7 @@ with st.sidebar:
 
             text = extract_pdf_text(uploaded)
             if text:
-                pipeline = ContractSensePipeline()
+                pipeline = _build_pipeline()
                 count = pipeline.load_document(text, uploaded.name)
                 st.session_state.pipeline = pipeline
                 st.session_state.doc_loaded = True
@@ -219,7 +225,7 @@ with st.sidebar:
     show_trace = st.checkbox("Show pipeline trace", value=False)
 
     if st.button("New Analysis", use_container_width=True):
-        st.session_state.pipeline = ContractSensePipeline()
+        st.session_state.pipeline = _build_pipeline()
         st.session_state.messages = []
         st.session_state.pdf_name = None
         st.session_state.doc_loaded = False

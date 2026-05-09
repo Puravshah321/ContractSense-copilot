@@ -47,6 +47,9 @@ def _baseline_evaluate():
             "retrieval_ok": retrieval_ok,
             "decision_ok": decision == case["expected_decision"],
             "answer_ok": answer_ok,
+            "intent_ok": False,
+            "structure_ok": False,
+            "concept_purity": 0.0,
             "hallucinated": hallucinated,
             "grounding_ratio": 1.0 if decision == "ANSWER" and retrieved else 0.0,
         })
@@ -59,6 +62,9 @@ def _baseline_evaluate():
         "hallucination_rate": sum(r["hallucinated"] for r in rows) / total,
         "not_found_accuracy": sum(r["actual_decision"] == "NOT_FOUND" for r in not_found_rows) / max(len(not_found_rows), 1),
         "grounding_accuracy": sum(r["grounding_ratio"] for r in rows) / total,
+        "intent_alignment_accuracy": 0.0,
+        "structure_match_accuracy": 0.0,
+        "concept_purity_score": 0.0,
     }, rows
 
 
@@ -77,6 +83,9 @@ def _normalize_dpo_metrics(dpo_eval_results):
         "hallucination_rate": dpo_eval_results.get("hallucination_rate"),
         "not_found_accuracy": dpo_eval_results.get("not_found_accuracy", dpo_eval_results.get("refusal_accuracy")),
         "grounding_accuracy": dpo_eval_results.get("grounding_accuracy"),
+        "intent_alignment_accuracy": dpo_eval_results.get("intent_alignment_accuracy"),
+        "structure_match_accuracy": dpo_eval_results.get("structure_match_accuracy"),
+        "concept_purity_score": dpo_eval_results.get("concept_purity_score"),
     }
 
 
@@ -89,6 +98,9 @@ def compare_models(dpo_eval_results=None):
         "hallucination_rate": generator_metrics.get("hallucination_rate"),
         "not_found_accuracy": generator_metrics.get("not_found_accuracy"),
         "grounding_accuracy": generator_metrics.get("average_grounding_ratio"),
+        "intent_alignment_accuracy": generator_metrics.get("intent_alignment_accuracy"),
+        "structure_match_accuracy": generator_metrics.get("structure_match_accuracy"),
+        "concept_purity_score": generator_metrics.get("concept_purity_score"),
     }
     return {
         "baseline": baseline_metrics,
@@ -107,7 +119,10 @@ def write_comparison_outputs(comparison, cases, output_dir):
     json_path = output_dir / "model_comparison_metrics.json"
     json_path.write_text(json.dumps({"metrics": comparison, "cases": cases}, indent=2), encoding="utf-8")
 
-    metrics = ["retrieval_accuracy", "decision_accuracy", "hallucination_rate", "not_found_accuracy", "grounding_accuracy"]
+    metrics = [
+        "retrieval_accuracy", "decision_accuracy", "hallucination_rate", "not_found_accuracy", "grounding_accuracy",
+        "intent_alignment_accuracy", "structure_match_accuracy", "concept_purity_score",
+    ]
     csv_path = output_dir / "model_comparison_metrics.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -121,7 +136,7 @@ def write_comparison_outputs(comparison, cases, output_dir):
     except ImportError:
         return [str(json_path), str(csv_path)]
 
-    plot_metrics = ["decision_accuracy", "not_found_accuracy", "grounding_accuracy"]
+    plot_metrics = ["decision_accuracy", "not_found_accuracy", "grounding_accuracy", "intent_alignment_accuracy", "structure_match_accuracy"]
     models = list(comparison.keys())
     x = range(len(plot_metrics))
     width = 0.24

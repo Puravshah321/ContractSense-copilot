@@ -5,10 +5,12 @@ Turns semantically aligned clauses into the expected output form instead of
 dumping retrieved passages.
 """
 from src.pipeline.legal_ontology import extract_obligation_summary
+from src.pipeline.obligation_extractor import extract_obligations
+from src.pipeline.synthesis import synthesize_obligations
 
 
 def should_use_structured_controller(query_profile):
-    return query_profile.answer_type in {"list", "risk_table", "comparison"}
+    return query_profile.answer_type in {"list", "risk_table", "comparison", "extraction"}
 
 
 def _evidence_list(evidence_chunks, limit=6):
@@ -40,6 +42,7 @@ def _risk_level_for_clause(labels, text):
 
 def generate_structured_answer(query, evidence_chunks, evidence_check, query_profile):
     evidence = _evidence_list(evidence_chunks)
+    obligations = extract_obligations(evidence_chunks, query_profile)
     if not evidence_chunks:
         prefix = "Answer: NOT_FOUND\n\n" if query_profile.answer_type == "yes_no" else ""
         return {
@@ -52,13 +55,7 @@ def generate_structured_answer(query, evidence_chunks, evidence_check, query_pro
         }
 
     if query_profile.answer_type == "list":
-        lines = []
-        for idx, item in enumerate(evidence_chunks, 1):
-            c = item["chunk"]
-            labels = ", ".join(item.get("taxonomy", ["General"]))
-            summary = extract_obligation_summary(c)
-            lines.append(f"{idx}. {labels}: {summary} [{c.clause_id}, {c.section}]")
-        answer = "Relevant obligations/commitments found:\n" + "\n".join(lines)
+        answer = synthesize_obligations(obligations, coverage=evidence_check.get("coverage"))
         return {
             "answer": answer,
             "risk_level": "MEDIUM",
@@ -70,12 +67,19 @@ def generate_structured_answer(query, evidence_chunks, evidence_check, query_pro
 
     if query_profile.answer_type == "risk_table":
         rows = []
-        for idx, item in enumerate(evidence_chunks, 1):
-            c = item["chunk"]
-            labels = item.get("taxonomy", ["General"])
-            risk = _risk_level_for_clause(labels, c.text)
-            summary = extract_obligation_summary(c)
-            rows.append(f"{idx}. {risk}: {summary} [{c.clause_id}, {c.section}]")
+        ranked = obligations[:10] if obligations else []
+        if ranked:
+            for idx, item in enumerate(ranked, 1):
+                labels = item.get("taxonomy", ["General"])
+                risk = _risk_level_for_clause(labels, item.get("text", ""))
+                rows.append(f"{idx}. {risk}: {item['text']} [{item['clause_id']}, {item['section']}]")
+        else:
+            for idx, item in enumerate(evidence_chunks, 1):
+                c = item["chunk"]
+                labels = item.get("taxonomy", ["General"])
+                risk = _risk_level_for_clause(labels, c.text)
+                summary = extract_obligation_summary(c)
+                rows.append(f"{idx}. {risk}: {summary} [{c.clause_id}, {c.section}]")
         return {
             "answer": "Ranked risks based on retrieved clauses:\n" + "\n".join(rows),
             "risk_level": "HIGH" if any(row.startswith(tuple([f"{i}. HIGH" for i in range(1, 10)])) for row in rows) else "MEDIUM",
@@ -98,6 +102,21 @@ def generate_structured_answer(query, evidence_chunks, evidence_check, query_pro
             "confidence": "MEDIUM",
             "decision": "ANSWER",
             "action": "Compare the cited clauses side by side before making a decision.",
+        }
+
+    if query_profile.answer_type == "extraction":
+        lines = []
+        for idx, item in enumerate(evidence_chunks, 1):
+            c = item["chunk"]
+            labels = ", ".join(item.get("taxonomy", ["General"]))
+            lines.append(f"{idx}. {c.clause_id} ({c.section}, p.{c.page}) | {labels}")
+        return {
+            "answer": "Extracted relevant clauses:\n" + "\n".join(lines),
+            "risk_level": "N/A",
+            "evidence": evidence,
+            "confidence": "HIGH" if len(evidence_chunks) >= 2 else "MEDIUM",
+            "decision": "ANSWER",
+            "action": "Review these cited clauses directly for exact legal wording.",
         }
 
     return None

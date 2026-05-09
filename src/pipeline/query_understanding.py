@@ -2,8 +2,8 @@
 Query understanding layer.
 
 Maps a user question to:
-  - query kind: factual / analytical / comparative / risk
-  - answer type: yes_no / fact / list / risk_table / comparison
+    - query kind: factual / analytical / comparative / risk / extraction
+    - answer type: yes_no / fact / list / risk_table / comparison / extraction
   - target legal concepts for retrieval and filtering
 """
 import re
@@ -69,10 +69,13 @@ def classify_query(query):
     if not concepts:
         concepts = ["general"]
 
-    if re.search(r"\b(compare|difference|versus|vs\.?|better|between)\b", q):
+    if re.search(r"\b(extract|show\s+all\s+clauses|list\s+all\s+clauses|which\s+clauses|give\s+all\s+clauses|clause\s+numbers?)\b", q):
+        query_kind = "extraction"
+        answer_type = "extraction"
+    elif re.search(r"\b(compare|difference|versus|vs\.?|better|between)\b", q):
         query_kind = "comparative"
         answer_type = "comparison"
-    elif re.search(r"\b(list|summarize|summary|all|what are|which obligations|financial commitments|commitments|risks|burdens)\b", q):
+    elif re.search(r"\b(list|summarize|summary|all|what are|which obligations|financial commitments|commitments|risks|burdens|impact|analy[sz]e)\b", q):
         query_kind = "analytical"
         answer_type = "risk_table" if "risk" in concepts else "list"
     elif "risk" in concepts:
@@ -90,8 +93,8 @@ def classify_query(query):
         expected_categories.extend(_CATEGORY_MAP.get(concept, []))
     expected_categories = sorted(set(expected_categories))
 
-    allow_multi_clause = query_kind in {"analytical", "comparative", "risk"} or answer_type in {"list", "risk_table", "comparison"}
-    retrieval_depth = 12 if allow_multi_clause else 5
+    allow_multi_clause = query_kind in {"analytical", "comparative", "risk", "extraction"} or answer_type in {"list", "risk_table", "comparison", "extraction"}
+    retrieval_depth = 14 if query_kind in {"analytical", "extraction"} else (12 if allow_multi_clause else 5)
     confidence = min(1.0, 0.35 + 0.15 * len([c for c in concepts if c != "general"]))
 
     return QueryProfile(

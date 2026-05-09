@@ -198,7 +198,11 @@ class ContractSensePipeline:
         
         import os
         mode = "rule"
-        if os.environ.get("HF_API_KEY"):
+        prefer_local_llm = os.environ.get("FORCE_LOCAL_LLM", "0") == "1"
+        if self.use_llm and prefer_local_llm:
+            mode = "llm"
+            trace.append("  -> Routing query to local GPU LLM (FORCE_LOCAL_LLM=1)...")
+        elif os.environ.get("HF_API_KEY"):
             mode = "hf_api"
             trace.append("  -> Routing query to Hugging Face Serverless API...")
         elif os.environ.get("LIGHTNING_API_URL") and os.environ.get("LIGHTNING_API_URL") != "http://REPLACE_WITH_YOUR_NGROK_URL/generate":
@@ -208,6 +212,7 @@ class ContractSensePipeline:
             mode = "llm" # Local GPU Fallback
 
         effective_evidence_check = dict(evidence_check)
+        effective_evidence_check["coverage"] = coverage
         if analytical_partial:
             effective_evidence_check["decision"] = "SUFFICIENT"
             effective_evidence_check["confidence"] = max(float(effective_evidence_check.get("confidence", 0.0)), 0.35)
