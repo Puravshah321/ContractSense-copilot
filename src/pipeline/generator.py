@@ -409,8 +409,12 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
                     "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
                 })
                 
+            ans = data.get("answer", "No answer provided.")
+            if isinstance(ans, list):
+                ans = "\n\n".join(str(item) for item in ans)
+                
             return {
-                "answer": data.get("answer", "No answer provided."),
+                "answer": ans,
                 "risk_level": data.get("risk_level", "MEDIUM"),
                 "evidence": evidence_list,
                 "confidence": "HIGH",
