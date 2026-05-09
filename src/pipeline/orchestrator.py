@@ -1,7 +1,11 @@
 """
-ContractSense Grounded Pipeline Orchestrator.
-Wires together: Chunker → Retriever → Evidence Checker → Generator → Verifier.
-Single entry point for the entire pipeline.
+ContractSense Intelligence Pipeline Orchestrator v2.
+
+Full pipeline:
+  Query → Intent Classification → Query Decomposition → Hybrid Retrieval
+  → Clause Classification → Semantic Filtering → Intent-Aware Reranking
+  → Evidence Extraction → Legal Reasoning → Evidence-Aware Synthesis
+  → Structured Grounded Answer
 """
 import time
 from dataclasses import dataclass, field, asdict
@@ -16,6 +20,9 @@ from src.pipeline.query_understanding import classify_query
 from src.pipeline.query_decomposer import decompose_query
 from src.pipeline.semantic_filter import filter_and_rerank
 from src.pipeline.coverage_model import assess_coverage
+from src.pipeline.evidence_extractor import extract_facts_from_evidence, normalize_facts_to_summary
+from src.pipeline.legal_reasoner import reason_about_evidence
+from src.pipeline.synthesis import synthesize_with_reasoning
 from src.pipeline.answer_controller import (
     generate_structured_answer,
     should_use_structured_controller,
@@ -39,6 +46,7 @@ class PipelineResult:
     retrieved_count: int
     chunk_count: int
     latency_ms: float
+    reasoning: dict = field(default_factory=dict)   # NEW: legal reasoning output
     pipeline_trace: list = field(default_factory=list)
 
     def to_dict(self):
@@ -83,9 +91,19 @@ class ContractSensePipeline:
 
     def query(self, user_query, top_k=3):
         """
-        Run the full grounded pipeline for a user query.
+        Run the full intelligence pipeline for a user query.
 
-        Returns a PipelineResult with full trace of every pipeline stage.
+        Stages:
+          1. Intent Classification
+          2. Query Decomposition
+          3. Hybrid Retrieval (per sub-query)
+          4. Semantic Filtering & Taxonomy Reranking
+          5. Evidence Sufficiency Check
+          6. Coverage Model
+          7. Evidence Extraction & Normalization  [NEW]
+          8. Legal Reasoning Layer               [NEW]
+          9. Evidence-Aware Synthesis            [NEW]
+          10. Grounding Verifier
         """
         start = time.time()
         trace = []
@@ -165,7 +183,6 @@ class ContractSensePipeline:
         retrieved = filter_and_rerank(user_query, retrieved_raw, query_profile, keep_k=keep_k)
         trace.append(f"  -> Kept {len(retrieved)} semantically aligned chunks")
 
-        # Stage 2: Evidence sufficiency check
         trace.append("Stage 4: Checking evidence sufficiency...")
         evidence_check = check_evidence_sufficiency(user_query, retrieved)
         evidence_check["query_profile"] = query_profile.to_dict()
@@ -178,10 +195,32 @@ class ContractSensePipeline:
             f"missing: {', '.join(coverage['missing_aspects']) if coverage['missing_aspects'] else 'none'}"
         )
 
-        # Stage 3: Decision gate
-        trace.append("Stage 5: Decision gate...")
+        # ── NEW Stage 5A: Evidence extraction & normalization ────────
+        trace.append("Stage 5A: Extracting structured legal facts from evidence...")
+        reasoning_output = None
+        facts = []
+        if retrieved and evidence_check["decision"] != "INSUFFICIENT":
+            facts = extract_facts_from_evidence(retrieved)
+            trace.append(f"  -> Extracted {len(facts)} legal facts ({', '.join(set(f.fact_type for f in facts[:6]))})")
+
+        # ── NEW Stage 5B: Legal reasoning layer ──────────────────────
+        if facts or (retrieved and is_analytical_path):
+            trace.append("Stage 5B: Legal reasoning layer (explicit → implied → conflicts → missing)...")
+            reasoning_output = reason_about_evidence(
+                user_query, retrieved, facts, query_profile, evidence_check
+            )
+            trace.append(
+                f"  -> Depth: {reasoning_output.reasoning_depth} | "
+                f"Explicit: {len(reasoning_output.explicit_findings)} | "
+                f"Implied: {len(reasoning_output.implied_interpretations)} | "
+                f"Conflicts: {len(reasoning_output.conflicts)} | "
+                f"Missing: {len(reasoning_output.missing_information)}"
+            )
+
+        # Stage 5: Decision gate
+        trace.append("Stage 5C: Decision gate...")
         analytical_partial = False
-        if evidence_check["decision"] == "CONFLICTING":
+        if evidence_check["decision"] == "CONFLICTING" or (reasoning_output and reasoning_output.conflicts):
             trace.append("  -> GATE: ESCALATE because evidence appears conflicting")
         elif is_factual_path and evidence_check["decision"] == "INSUFFICIENT":
             trace.append("  -> GATE: NOT_FOUND (strict factual mode)")
@@ -193,23 +232,21 @@ class ContractSensePipeline:
         else:
             trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
 
-        # Stage 4: Generate grounded answer
-        trace.append("Stage 6: Generating answer with answer-type controller...")
-        
+        trace.append("Stage 6: Generating answer...")
         import os
         mode = "rule"
         prefer_local_llm = os.environ.get("FORCE_LOCAL_LLM", "0") == "1"
         if self.use_llm and prefer_local_llm:
             mode = "llm"
-            trace.append("  -> Routing query to local GPU LLM (FORCE_LOCAL_LLM=1)...")
+            trace.append("  -> Routing to local GPU LLM...")
         elif os.environ.get("HF_API_KEY"):
             mode = "hf_api"
-            trace.append("  -> Routing query to Hugging Face Serverless API...")
+            trace.append("  -> Routing to Hugging Face Serverless API...")
         elif os.environ.get("LIGHTNING_API_URL") and os.environ.get("LIGHTNING_API_URL") != "http://REPLACE_WITH_YOUR_NGROK_URL/generate":
             mode = "api"
-            trace.append("  -> Routing query to Lightning AI GPU API...")
+            trace.append("  -> Routing to Lightning AI GPU API...")
         elif self.use_llm:
-            mode = "llm" # Local GPU Fallback
+            mode = "llm"
 
         effective_evidence_check = dict(evidence_check)
         effective_evidence_check["coverage"] = coverage
@@ -217,7 +254,25 @@ class ContractSensePipeline:
             effective_evidence_check["decision"] = "SUFFICIENT"
             effective_evidence_check["confidence"] = max(float(effective_evidence_check.get("confidence", 0.0)), 0.35)
 
-        if effective_evidence_check["decision"] == "SUFFICIENT" and should_use_structured_controller(query_profile):
+        # ── NEW Stage 6A: Evidence-Aware Synthesis for analytical queries
+        if (
+            reasoning_output is not None
+            and is_analytical_path
+            and effective_evidence_check["decision"] == "SUFFICIENT"
+            and reasoning_output.explicit_findings
+        ):
+            trace.append("  -> Using evidence-aware synthesis (reasoning layer active)")
+            synthesized = synthesize_with_reasoning(reasoning_output, coverage=coverage)
+            # Merge into answer_data
+            answer_data = {
+                "answer": synthesized,
+                "risk_level": _pick_risk(reasoning_output),
+                "evidence": _evidence_list_from_retrieved(retrieved),
+                "confidence": _conf_label(reasoning_output.confidence),
+                "decision": "ANSWER",
+                "action": _make_action_from_reasoning(reasoning_output),
+            }
+        elif effective_evidence_check["decision"] == "SUFFICIENT" and should_use_structured_controller(query_profile):
             answer_data = generate_structured_answer(user_query, retrieved, effective_evidence_check, query_profile)
         else:
             answer_data = generate_grounded_answer(
@@ -233,12 +288,10 @@ class ContractSensePipeline:
             answer_data["confidence"] = "MEDIUM"
         trace.append(f"  -> Decision: {answer_data['decision']}, Risk: {answer_data['risk_level']}")
 
-        # Stage 5: Verify grounding
         trace.append("Stage 7: Verifying grounding...")
         verification = verify_grounding(answer_data, retrieved)
         trace.append(f"  -> Verdict: {verification['verdict']} ({verification['supported_ratio']:.0%} supported)")
 
-        # Stage 6: Override if verification fails
         if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
             trace.append("Stage 8: OVERRIDE - unsupported answer changed to NOT_FOUND")
             answer_data["decision"] = "NOT_FOUND"
@@ -270,6 +323,7 @@ class ContractSensePipeline:
             retrieved_count=len(retrieved),
             chunk_count=len(self.chunks),
             latency_ms=round(latency, 1),
+            reasoning=reasoning_output.to_sections() if reasoning_output else {},
             pipeline_trace=trace,
         )
 
@@ -301,3 +355,50 @@ class ContractSensePipeline:
                 results.append(result)
 
         return results
+
+
+# ── Module-level helpers for the reasoning synthesis path ───────────
+
+def _pick_risk(reasoning_output):
+    impl = " ".join(reasoning_output.risk_implications).lower()
+    if "critical" in impl or "unlimited" in impl:
+        return "CRITICAL"
+    if "high" in impl or "cap" in impl or "conflict" in impl or "prohibit" in impl:
+        return "HIGH"
+    if "medium" in impl or "penalty" in impl or "ambig" in impl:
+        return "MEDIUM"
+    if reasoning_output.explicit_findings:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _conf_label(conf_float):
+    if conf_float >= 0.65:
+        return "HIGH"
+    if conf_float >= 0.35:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _evidence_list_from_retrieved(retrieved, limit=4):
+    out = []
+    for r in retrieved[:limit]:
+        c = r["chunk"]
+        out.append({
+            "clause_id": c.clause_id,
+            "section": c.section,
+            "page": c.page,
+            "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
+        })
+    return out
+
+
+def _make_action_from_reasoning(reasoning_output):
+    if reasoning_output.conflicts:
+        return "Legal review required — conflicting provisions detected."
+    if reasoning_output.risk_implications:
+        return reasoning_output.risk_implications[0][:200]
+    if reasoning_output.explicit_findings:
+        return "Review the cited clauses to understand your obligations before proceeding."
+    return ""
+

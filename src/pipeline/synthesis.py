@@ -1,9 +1,16 @@
 """
-Multi-clause synthesis.
+Evidence-Aware Synthesis — upgraded.
 
-Combines extracted obligations into a structured response grouped by legal
-concept and includes evidence, impact, and risk level.
+Improvement #8: Structured output with explicitly separated sections:
+  1. Directly Supported Findings
+  2. Implied Interpretation
+  3. Unsupported Assumptions
+  4. Missing Information
+  5. Risk Implications
+
+Also feeds multi-clause and cross-clause analysis (Improvement #11).
 """
+from src.pipeline.legal_reasoner import ReasoningOutput
 
 
 def _risk_from_group(group_name, items):
@@ -27,6 +34,8 @@ def _impact_for_group(group_name):
         return "Compliance and data governance risk if obligations are breached."
     if "term" in g or "survival" in g:
         return "Ongoing obligations can remain enforceable over time."
+    if "sla" in g or "service level" in g:
+        return "Operational risk — SLA breaches may trigger financial penalties."
     return "Operational and contractual obligations require active compliance."
 
 
@@ -44,7 +53,78 @@ def _group_key(item):
     return "General"
 
 
+def synthesize_with_reasoning(reasoning: ReasoningOutput, coverage=None):
+    """
+    Produce a fully structured evidence-aware synthesis from ReasoningOutput.
+
+    Returns a string formatted in clearly labelled sections.
+    """
+    lines = []
+
+    # ── Section 1: Directly Supported Findings ──────────────────────
+    if reasoning.explicit_findings:
+        lines.append("**Directly Supported Findings**")
+        for finding in reasoning.explicit_findings[:5]:
+            lines.append(f"  • {finding}")
+        lines.append("")
+
+    # ── Section 2: Implied Interpretation ──────────────────────────
+    if reasoning.implied_interpretations:
+        lines.append("**Implied Interpretation** _(bounded inference from evidence)_")
+        for implication in reasoning.implied_interpretations[:3]:
+            lines.append(f"  • {implication}")
+        lines.append("")
+
+    # ── Section 3: Conflicting Provisions ──────────────────────────
+    if reasoning.conflicts:
+        lines.append("**⚠ Conflicting Provisions Detected**")
+        for conflict in reasoning.conflicts[:2]:
+            lines.append(f"  • {conflict}")
+        lines.append("")
+
+    # ── Section 4: Missing Information ─────────────────────────────
+    if reasoning.missing_information:
+        lines.append("**Missing Information** _(not found in document)_")
+        for missing in reasoning.missing_information[:4]:
+            lines.append(f"  • {missing}")
+        lines.append("")
+
+    # ── Section 5: Ambiguities ─────────────────────────────────────
+    if reasoning.ambiguities:
+        lines.append("**Ambiguities Requiring Clarification**")
+        for ambig in reasoning.ambiguities[:3]:
+            lines.append(f"  • {ambig}")
+        lines.append("")
+
+    # ── Section 6: Risk Implications ───────────────────────────────
+    if reasoning.risk_implications:
+        lines.append("**Risk Implications**")
+        for risk in reasoning.risk_implications[:4]:
+            lines.append(f"  ⚠ {risk}")
+        lines.append("")
+
+    # ── Coverage gaps ───────────────────────────────────────────────
+    if coverage and coverage.get("missing_aspects"):
+        missing = ", ".join(coverage["missing_aspects"])
+        lines.append(f"**Coverage Gaps:** {missing}.")
+        lines.append("")
+
+    # ── Reasoning quality indicator ─────────────────────────────────
+    conf_pct = int(reasoning.confidence * 100)
+    lines.append(
+        f"_Reasoning depth: {reasoning.reasoning_depth} | "
+        f"Confidence: {conf_pct}% | "
+        f"Inferences made: {reasoning.n_assumptions}_"
+    )
+
+    result = "\n".join(lines).strip()
+    if not result:
+        return "No actionable analysis could be generated from the available evidence."
+    return result
+
+
 def synthesize_obligations(obligations, coverage=None, max_groups=5, max_points_per_group=3):
+    """Legacy synthesis path (kept for backward compatibility with answer_controller)."""
     if not obligations:
         return "No actionable obligations were extracted from the selected clauses."
 
