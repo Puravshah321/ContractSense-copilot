@@ -41,8 +41,32 @@ def _passes_concept_constraints(item, query_profile):
             text,
         ))
 
+    if "termination" in query_profile.concepts:
+        allowed = {"Termination", "Survival", "Term/Duration"}
+        if not labels & allowed:
+            return False
+        return bool(re.search(r"terminat|cure|breach|survive|notice|expiry|expiration", text))
+
+    if "liability" in query_profile.concepts:
+        allowed = {"Liability/Remedies", "Indemnification", "Warranty/Representation"}
+        if not labels & allowed:
+            return False
+        return bool(re.search(r"liabil|damage|indemn|cap|limit|maximum|negligence|negligent", text))
+
+    if "confidentiality" in query_profile.concepts:
+        allowed = {"Confidentiality", "Data Protection", "Use Restriction"}
+        if not labels & allowed:
+            return False
+        return bool(re.search(r"confident|disclos|secret|data|private|personally identifiable", text))
+
+    if "data_use" in query_profile.concepts:
+        allowed = {"Data Protection", "Confidentiality", "Use Restriction", "Intellectual Property"}
+        if not labels & allowed:
+            return False
+        return bool(re.search(r"data|processing|storage|privacy|security|breach|personal", text))
+
     if "warranty" in query_profile.concepts:
-        return "Warranty/Representation" in labels
+        return "Warranty/Representation" in labels or "Liability/Remedies" in labels
 
     return True
 
@@ -52,6 +76,14 @@ def filter_and_rerank(query, retrieved, query_profile, keep_k=None):
         return []
 
     cross_encoder = _get_cross_encoder()
+    
+    # Create a dense rerank query that focuses on legal concepts rather than story words
+    rerank_query = " ".join(query_profile.concepts) + " " + " ".join(query_profile.expected_categories)
+    if not rerank_query.strip():
+        rerank_query = query[:200]
+    else:
+        # Add core parts of the original query to maintain some context
+        rerank_query += " " + query[:150]
 
     scored = []
     for item in retrieved:
@@ -66,7 +98,7 @@ def filter_and_rerank(query, retrieved, query_profile, keep_k=None):
 
         rerank_score = 0.0
         if cross_encoder is not None:
-            pair = [[query, item["chunk"].text[:1200]]]
+            pair = [[rerank_query, item["chunk"].text[:1200]]]
             try:
                 pred = cross_encoder.predict(pair)
                 rerank_score = float(pred[0])

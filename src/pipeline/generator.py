@@ -412,13 +412,14 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
         "You are given EVIDENCE clauses retrieved from a contract, and a list of atomic sub-questions to analyze.\n\n"
         "RULES:\n"
         "1. DO NOT fabricate legal rules. Only reason from the provided evidence.\n"
-        "2. For EACH sub-question, analyze it independently:\n"
-        "   - If evidence is missing, state: 'The agreement does not explicitly address [topic].'\n"
-        "   - Identify implications from related clauses using: 'implies', 'suggests', 'does not clearly define', 'ambiguous whether'.\n"
-        "3. Never say 'Yes' or 'No' unless a clause explicitly resolves it.\n"
-        "4. Always cite which evidence item you are reasoning from (e.g. Evidence 1).\n"
+        "2. For EACH sub-question, perform a structured analysis:\n"
+        "   - 'explicit': Direct statements from the evidence (cite Evidence X).\n"
+        "   - 'implied': Reasonable legal implications or suggestions derived from evidence.\n"
+        "   - 'unresolved': Gaps, ambiguities, or missing information.\n"
+        "3. Use language like: 'implies', 'suggests', 'does not clearly define', 'ambiguous whether'.\n"
+        "4. Never say 'Yes' or 'No' unless a clause explicitly resolves it.\n"
         "5. Return a JSON array of objects, one per sub-question, matching this schema:\n"
-        "   [{\"q\": \"...\", \"finding\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}]"
+        "   [{\"q\": \"...\", \"explicit\": \"...\", \"implied\": \"...\", \"unresolved\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}]"
     )
 
     findings = []
@@ -480,7 +481,22 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
     unresolved_count = 0
     for f in findings:
         resolved_tag = "✓ Resolved" if f["resolved"] else "⚠ Unresolved/Ambiguous"
-        answer_lines.append(f"**{f['q']}**\n{resolved_tag} — {f['finding']}")
+        
+        q_text = f"**{f['q']}**\n{resolved_tag}"
+        
+        explicit = f.get("explicit", "").strip()
+        if explicit and explicit.lower() not in {"n/a", "none", "no explicit statements found"}:
+            q_text += f"\n- **Explicit Findings:** {explicit}"
+            
+        implied = f.get("implied", "").strip()
+        if implied and implied.lower() not in {"n/a", "none", "no implied interpretations"}:
+            q_text += f"\n- **Implied Interpretation:** {implied}"
+            
+        unresolved = f.get("unresolved", "").strip()
+        if unresolved and unresolved.lower() not in {"n/a", "none"}:
+            q_text += f"\n- **Unresolved Gaps:** {unresolved}"
+            
+        answer_lines.append(q_text)
         if not f["resolved"]:
             unresolved_count += 1
 
