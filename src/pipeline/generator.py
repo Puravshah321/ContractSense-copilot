@@ -336,11 +336,22 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
     import os
     import requests
     import json
+    
+    try:
+        import streamlit as st
+        api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
+    except Exception:
+        api_key = os.environ.get("GROQ_API_KEY")
 
-    api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        print("GROQ_API_KEY not found. Falling back to rule-based generation.")
-        return _generate_rule_answer(query, evidence_chunks, evidence_check)
+        return {
+            "answer": "SYSTEM ERROR: GROQ_API_KEY is missing from Streamlit secrets. The rule-based fallback was disabled for debugging.",
+            "risk_level": "N/A",
+            "evidence": [],
+            "confidence": "LOW",
+            "decision": "NOT_FOUND",
+            "action": ""
+        }
 
     context_parts = []
     for i, r in enumerate(evidence_chunks):
@@ -352,7 +363,7 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
     sys_prompt = (
         "You are ContractSense, a highly accurate contract analysis AI. "
         "Your task is to answer the user's query based ONLY on the provided EVIDENCE. "
-        "If the evidence does not contain the answer, you MUST return decision: 'NOT_FOUND'. "
+        "If the evidence does not contain the answer or the subjects in the query are not in the contract, you MUST return decision: 'NOT_FOUND' and answer 'This is not specified in the provided document.' "
         "If you can answer, cite the exact clause_id and quote the text. "
         "You must respond in valid JSON format matching this schema: "
         '{"answer": "...", "risk_level": "LOW|MEDIUM|HIGH|CRITICAL", "decision": "ANSWER|NOT_FOUND|ESCALATE"}'
@@ -403,13 +414,28 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
                 "action": _make_evidence_action(evidence_list) if data.get("decision") != "NOT_FOUND" else "",
             }
         else:
-            print(f"Groq API Error: {resp.status_code} - {resp.text}")
+            err_msg = f"Groq API Error: {resp.status_code} - {resp.text}"
+            print(err_msg)
+            return {
+                "answer": f"SYSTEM ERROR: API connection failed. {err_msg}",
+                "risk_level": "N/A",
+                "evidence": [],
+                "confidence": "LOW",
+                "decision": "NOT_FOUND",
+                "action": ""
+            }
             
     except Exception as e:
-        print(f"Groq Request Error: {e}")
-        
-    # Fallback to local CPU logic
-    return _generate_rule_answer(query, evidence_chunks, evidence_check)
+        err_msg = f"Groq Request Error: {str(e)}"
+        print(err_msg)
+        return {
+            "answer": f"SYSTEM ERROR: Exception occurred during API call. {err_msg}",
+            "risk_level": "N/A",
+            "evidence": [],
+            "confidence": "LOW",
+            "decision": "NOT_FOUND",
+            "action": ""
+        }
 
 
 def _generate_api_answer(query, evidence_chunks, evidence_check):
