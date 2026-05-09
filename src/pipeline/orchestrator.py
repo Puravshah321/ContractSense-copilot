@@ -89,7 +89,7 @@ class ContractSensePipeline:
         self.document_loaded = True
         return len(self.chunks)
 
-    def query(self, user_query, top_k=3):
+    def query(self, user_query, top_k=3, force_rule=False):
         """
         Run the full intelligence pipeline for a user query.
 
@@ -236,7 +236,9 @@ class ContractSensePipeline:
         import os
         mode = "rule"
         prefer_local_llm = os.environ.get("FORCE_LOCAL_LLM", "0") == "1"
-        if self.use_llm and prefer_local_llm:
+        if force_rule:
+            trace.append("  -> Routing to Rule-based engine (Forced)")
+        elif self.use_llm and prefer_local_llm:
             mode = "llm"
             trace.append("  -> Routing to local GPU LLM...")
         elif os.environ.get("GROQ_API_KEY"):
@@ -356,7 +358,7 @@ class ContractSensePipeline:
 
         results = []
         for q in risk_queries:
-            result = self.query(q, top_k=3)
+            result = self.query(q, top_k=3, force_rule=True)
             if result.decision != "NOT_FOUND":
                 results.append(result)
 
