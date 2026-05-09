@@ -393,6 +393,8 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
             result = resp.json()
             content = result["choices"][0]["message"]["content"]
             data = json.loads(content)
+            if isinstance(data, list):
+                data = data[0] if len(data) > 0 else {}
             
             # Format UI Evidence
             evidence_list = []
