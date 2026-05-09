@@ -386,7 +386,7 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers=headers,
                 json={
-                    "model": model,
+                    "model": "llama-3.1-8b-instant",
                     "messages": [
                         {"role": "system", "content": decomp_prompt},
                         {"role": "user", "content": f"QUERY:\n{query}"}
@@ -406,20 +406,19 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
     if not sub_questions:
         sub_questions = [query]
 
-    # ── Pass 2: Per-sub-question cautious legal reasoning ──────────────────
+    # ── Pass 2: Combined cautious legal reasoning ──────────────────────────
     sys_prompt = (
         "You are ContractSense, an advanced legal reasoning AI with strict grounding discipline.\n"
-        "You are given EVIDENCE clauses retrieved from a contract, and a sub-question to analyze.\n\n"
+        "You are given EVIDENCE clauses retrieved from a contract, and a list of atomic sub-questions to analyze.\n\n"
         "RULES:\n"
         "1. DO NOT fabricate legal rules. Only reason from the provided evidence.\n"
-        "2. If the evidence does NOT directly address the sub-question:\n"
-        "   - State: 'The agreement does not explicitly address [topic].'\n"
-        "   - Then state what CAN be implied from related clauses, if anything.\n"
-        "3. Use language like: 'implies', 'suggests', 'does not clearly define', 'ambiguous whether'.\n"
-        "4. Never say 'Yes' or 'No' unless a clause explicitly resolves it.\n"
-        "5. Always cite which evidence item you are reasoning from (e.g. Evidence 1).\n"
-        "6. Your answer must be 2-4 sentences maximum per sub-question.\n"
-        "Return ONLY a JSON object: {\"finding\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}"
+        "2. For EACH sub-question, analyze it independently:\n"
+        "   - If evidence is missing, state: 'The agreement does not explicitly address [topic].'\n"
+        "   - Identify implications from related clauses using: 'implies', 'suggests', 'does not clearly define', 'ambiguous whether'.\n"
+        "3. Never say 'Yes' or 'No' unless a clause explicitly resolves it.\n"
+        "4. Always cite which evidence item you are reasoning from (e.g. Evidence 1).\n"
+        "5. Return a JSON array of objects, one per sub-question, matching this schema:\n"
+        "   [{\"q\": \"...\", \"finding\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}]"
     )
 
     findings = []
@@ -427,39 +426,47 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
     any_high = False
     any_resolved = False
 
-    for sq in sub_questions[:8]:  # cap at 8 sub-questions to stay within token budget
-        try:
-            user_msg = f"EVIDENCE:\n{evidence_text}\n\nSUB-QUESTION: {sq}\n\nReturn JSON ONLY."
-            r = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers=headers,
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": sys_prompt},
-                        {"role": "user", "content": user_msg}
-                    ],
-                    "response_format": {"type": "json_object"},
-                    "temperature": 0.1
-                },
-                timeout=20
-            )
-            if r.status_code == 200:
-                data = json.loads(r.json()["choices"][0]["message"]["content"])
-                if isinstance(data, list):
-                    data = data[0] if data else {}
-                finding = str(data.get("finding", "No finding."))
-                resolved = bool(data.get("resolved", False))
-                risk = str(data.get("risk_contribution", "MEDIUM"))
-                findings.append({"q": sq, "finding": finding, "resolved": resolved, "risk": risk})
-                if resolved:
-                    any_resolved = True
-                if risk == "CRITICAL":
-                    any_critical = True
-                elif risk == "HIGH":
-                    any_high = True
-        except Exception as e:
-            findings.append({"q": sq, "finding": f"Analysis unavailable: {e}", "resolved": False, "risk": "MEDIUM"})
+    try:
+        user_msg = f"EVIDENCE:\n{evidence_text}\n\nSUB-QUESTIONS:\n" + "\n".join(sub_questions[:8]) + "\n\nReturn JSON ONLY."
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": user_msg}
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1
+            },
+            timeout=30
+        )
+        if r.status_code == 200:
+            resp_json = r.json()
+            content = resp_json["choices"][0]["message"]["content"]
+            # Extract list from potential JSON object wrapper
+            data = json.loads(content)
+            if isinstance(data, dict):
+                # Look for a list value in the dict (Groq json_object often wraps the array)
+                for val in data.values():
+                    if isinstance(val, list):
+                        findings = val
+                        break
+                else:
+                    findings = []
+            elif isinstance(data, list):
+                findings = data
+            
+            for f in findings:
+                if f.get("resolved"): any_resolved = True
+                risk = f.get("risk_contribution", "MEDIUM")
+                if risk == "CRITICAL": any_critical = True
+                elif risk == "HIGH": any_high = True
+        else:
+            print(f"Groq API Synthesis Error: {r.status_code} - {r.text}")
+    except Exception as e:
+        print(f"Synthesis Exception: {e}")
 
     # ── Assemble final answer ──────────────────────────────────────────────
     if not findings:
