@@ -207,6 +207,9 @@ def generate_grounded_answer(query, evidence_chunks, evidence_check, mode="rule"
             "action": "",
         }
 
+    if mode == "groq_api":
+        return _generate_groq_api_answer(query, evidence_chunks, evidence_check)
+
     if mode == "hf_api":
         return _generate_hf_api_answer(query, evidence_chunks, evidence_check)
 
@@ -320,6 +323,90 @@ def _generate_hf_api_answer(query, evidence_chunks, evidence_check):
             
     except Exception as e:
         print(f"HF Request Error: {e}")
+        
+    # Fallback to local CPU logic
+    return _generate_rule_answer(query, evidence_chunks, evidence_check)
+
+
+def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
+    """
+    Calls the Groq API (Wizard of Oz mode).
+    Uses Llama-3-70b or 8b for ultra-fast, high-quality answers.
+    """
+    import os
+    import requests
+    import json
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        print("GROQ_API_KEY not found. Falling back to rule-based generation.")
+        return _generate_rule_answer(query, evidence_chunks, evidence_check)
+
+    context_parts = []
+    for i, r in enumerate(evidence_chunks):
+        c = r["chunk"]
+        context_parts.append(
+            f"[Evidence {i+1}] clause_id: {c.clause_id} | section: {c.section} | page: {c.page}\n{c.text}"
+        )
+    
+    sys_prompt = (
+        "You are ContractSense, a highly accurate contract analysis AI. "
+        "Your task is to answer the user's query based ONLY on the provided EVIDENCE. "
+        "If the evidence does not contain the answer, you MUST return decision: 'NOT_FOUND'. "
+        "If you can answer, cite the exact clause_id and quote the text. "
+        "You must respond in valid JSON format matching this schema: "
+        '{"answer": "...", "risk_level": "LOW|MEDIUM|HIGH|CRITICAL", "decision": "ANSWER|NOT_FOUND|ESCALATE"}'
+    )
+    
+    user_prompt = "EVIDENCE:\n" + "\n\n".join(context_parts) + f"\n\nQUERY: {query}\n\nReturn JSON ONLY."
+
+    try:
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama3-70b-8192",
+                "messages": [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1
+            },
+            timeout=15
+        )
+        if resp.status_code == 200:
+            result = resp.json()
+            content = result["choices"][0]["message"]["content"]
+            data = json.loads(content)
+            
+            # Format UI Evidence
+            evidence_list = []
+            for r in evidence_chunks[:3]:
+                c = r["chunk"]
+                evidence_list.append({
+                    "clause_id": c.clause_id,
+                    "section": c.section,
+                    "page": c.page,
+                    "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
+                })
+                
+            return {
+                "answer": data.get("answer", "No answer provided."),
+                "risk_level": data.get("risk_level", "MEDIUM"),
+                "evidence": evidence_list,
+                "confidence": "HIGH",
+                "decision": data.get("decision", "ANSWER"),
+                "action": _make_evidence_action(evidence_list) if data.get("decision") != "NOT_FOUND" else "",
+            }
+        else:
+            print(f"Groq API Error: {resp.status_code} - {resp.text}")
+            
+    except Exception as e:
+        print(f"Groq Request Error: {e}")
         
     # Fallback to local CPU logic
     return _generate_rule_answer(query, evidence_chunks, evidence_check)

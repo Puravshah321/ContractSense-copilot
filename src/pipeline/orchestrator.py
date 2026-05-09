@@ -239,6 +239,9 @@ class ContractSensePipeline:
         if self.use_llm and prefer_local_llm:
             mode = "llm"
             trace.append("  -> Routing to local GPU LLM...")
+        elif os.environ.get("GROQ_API_KEY"):
+            mode = "groq_api"
+            trace.append("  -> Routing to Groq Fast API (Wizard of Oz)...")
         elif os.environ.get("HF_API_KEY"):
             mode = "hf_api"
             trace.append("  -> Routing to Hugging Face Serverless API...")
