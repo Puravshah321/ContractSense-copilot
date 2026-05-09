@@ -307,10 +307,21 @@ class ContractSensePipeline:
         trace.append(f"  -> Verdict: {verification['verdict']} ({verification['supported_ratio']:.0%} supported)")
 
         if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
-            trace.append("Stage 8: OVERRIDE - unsupported answer changed to NOT_FOUND")
-            answer_data["decision"] = "NOT_FOUND"
-            answer_data["confidence"] = "HIGH"
-            answer_data["risk_level"] = "N/A"
+            if is_analytical_path and mode in ("groq_api", "hf_api"):
+                trace.append("Stage 8: OVERRIDE - analytical reasoning marked as AMBIGUOUS")
+                answer_data["decision"] = "AMBIGUOUS"
+                answer_data["confidence"] = "LOW"
+                answer_data["risk_level"] = "MEDIUM"
+                answer_data["answer"] = (
+                    "**Partial Legal Analysis (Ambiguous/Unresolved Evidence):**\n"
+                    "The following interpretation relies on implicitly related clauses because explicit rules are absent. "
+                    "This synthesis was strictly flagged by the semantic verifier for insufficient direct textual grounding.\n\n"
+                ) + str(answer_data.get("answer", ""))
+            else:
+                trace.append("Stage 8: OVERRIDE - unsupported answer changed to NOT_FOUND")
+                answer_data["decision"] = "NOT_FOUND"
+                answer_data["confidence"] = "HIGH"
+                answer_data["risk_level"] = "N/A"
             
             missing_items = coverage.get("missing_aspects", [])
             clean_aspects = [m.replace("_", " ").title() for m in missing_items if m != "general"]

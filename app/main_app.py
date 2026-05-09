@@ -62,6 +62,7 @@ st.markdown("""
 .tag-answer { background: #22C55E22; color: #86EFAC; }
 .tag-notfound { background: #EF444422; color: #FCA5A5; }
 .tag-escalate { background: #F59E0B22; color: #FCD34D; }
+.tag-ambiguous { background: #6366F122; color: #818CF8; }
 .welcome-card {
     background: #121218; border: 1px solid #2A2A2A; border-radius: 16px;
     padding: 40px; text-align: center; margin: 60px auto;
@@ -105,7 +106,7 @@ def format_result_as_message(result):
         risk_class = "na"
 
     decision_class = {
-        "ANSWER": "tag-answer", "NOT_FOUND": "tag-notfound", "ESCALATE": "tag-escalate",
+        "ANSWER": "tag-answer", "NOT_FOUND": "tag-notfound", "ESCALATE": "tag-escalate", "AMBIGUOUS": "tag-ambiguous"
     }.get(result.decision, "tag-notfound")
 
     # Build message
