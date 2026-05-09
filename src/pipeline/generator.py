@@ -330,13 +330,15 @@ def _generate_hf_api_answer(query, evidence_chunks, evidence_check):
 
 def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
     """
-    Calls the Groq API (Wizard of Oz mode).
-    Uses Llama-3-70b or 8b for ultra-fast, high-quality answers.
+    Two-pass Groq API generator:
+    Pass 1 — Decompose the query into atomic sub-questions.
+    Pass 2 — For each sub-question, reason cautiously against evidence,
+              explicitly flagging gaps/ambiguities where clauses are absent or only partially relevant.
     """
     import os
     import requests
     import json
-    
+
     try:
         import streamlit as st
         api_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
@@ -345,7 +347,7 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
 
     if not api_key:
         return {
-            "answer": "SYSTEM ERROR: GROQ_API_KEY is missing from Streamlit secrets. The rule-based fallback was disabled for debugging.",
+            "answer": "SYSTEM ERROR: GROQ_API_KEY is missing from Streamlit secrets.",
             "risk_level": "N/A",
             "evidence": [],
             "confidence": "LOW",
@@ -353,99 +355,160 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
             "action": ""
         }
 
+    # ── Build evidence context ──────────────────────────────────────────────
     context_parts = []
     for i, r in enumerate(evidence_chunks):
         c = r["chunk"]
         context_parts.append(
             f"[Evidence {i+1}] clause_id: {c.clause_id} | section: {c.section} | page: {c.page}\n{c.text}"
         )
-    
-    sys_prompt = (
-        "You are ContractSense, an advanced, highly cautious legal reasoning AI. "
-        "Your task is to analyze the user's query based ONLY on the provided EVIDENCE. "
-        "CRITICAL RULES:\n"
-        "1. DO NOT force a YES or NO answer if the evidence is loosely related or incomplete.\n"
-        "2. If the agreement does not clearly define a rule for the scenario, you MUST state: 'The agreement does not clearly define whether...' or 'It is ambiguous whether...'\n"
-        "3. If clauses interact (e.g. liability and data protection), explicitly state if their interaction is unresolved or ambiguous.\n"
-        "4. DO NOT invent legal conclusions. If the cited clause does not perfectly match the scenario, highlight the gap.\n"
-        "5. Respond with a single, well-structured, cautious analytical string (use bullet points if needed). DO NOT output a nested JSON dictionary inside the answer field.\n"
-        "You must respond in valid JSON format matching this schema: "
-        '{"answer": "...", "risk_level": "LOW|MEDIUM|HIGH|CRITICAL|N/A", "decision": "ANSWER|NOT_FOUND|ESCALATE"}'
-    )
-    
-    user_prompt = "EVIDENCE:\n" + "\n\n".join(context_parts) + f"\n\nQUERY: {query}\n\nReturn JSON ONLY."
+    evidence_text = "\n\n".join(context_parts) if context_parts else "No evidence retrieved."
 
-    try:
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.1-8b-instant",
-                "messages": [
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.1
-            },
-            timeout=15
-        )
-        if resp.status_code == 200:
-            result = resp.json()
-            content = result["choices"][0]["message"]["content"]
-            data = json.loads(content)
-            if isinstance(data, list):
-                data = data[0] if len(data) > 0 else {}
-            
-            # Format UI Evidence
-            evidence_list = []
-            for r in evidence_chunks[:3]:
-                c = r["chunk"]
-                evidence_list.append({
-                    "clause_id": c.clause_id,
-                    "section": c.section,
-                    "page": c.page,
-                    "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
-                })
-                
-            ans = data.get("answer", "No answer provided.")
-            if isinstance(ans, list):
-                ans = "\n\n".join(str(item) for item in ans)
-                
-            return {
-                "answer": ans,
-                "risk_level": data.get("risk_level", "MEDIUM"),
-                "evidence": evidence_list,
-                "confidence": "HIGH",
-                "decision": data.get("decision", "ANSWER"),
-                "action": _make_evidence_action(evidence_list) if data.get("decision") != "NOT_FOUND" else "",
-            }
-        else:
-            err_msg = f"Groq API Error: {resp.status_code} - {resp.text}"
-            print(err_msg)
-            return {
-                "answer": f"SYSTEM ERROR: API connection failed. {err_msg}",
-                "risk_level": "N/A",
-                "evidence": [],
-                "confidence": "LOW",
-                "decision": "NOT_FOUND",
-                "action": ""
-            }
-            
-    except Exception as e:
-        err_msg = f"Groq Request Error: {str(e)}"
-        print(err_msg)
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    model = "llama-3.3-70b-versatile"
+
+    # ── Pass 1: Decompose compound query into sub-questions ─────────────────
+    is_compound = "\n" in query.strip() or len(query) > 300
+    sub_questions = []
+    if is_compound:
+        try:
+            decomp_prompt = (
+                "You are a legal query decomposer. "
+                "The user has asked a multi-part legal question. "
+                "Split it into a JSON list of independent, atomic sub-questions. "
+                "Each sub-question should be answerable from a single contract clause. "
+                "Return ONLY a JSON array of strings. Example: [\"Q1\", \"Q2\"]"
+            )
+            decomp_resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": decomp_prompt},
+                        {"role": "user", "content": f"QUERY:\n{query}"}
+                    ],
+                    "temperature": 0.0
+                },
+                timeout=15
+            )
+            if decomp_resp.status_code == 200:
+                raw = decomp_resp.json()["choices"][0]["message"]["content"].strip()
+                raw = raw[raw.find("["):raw.rfind("]")+1]
+                sub_questions = json.loads(raw)
+        except Exception:
+            sub_questions = []
+
+    # Fallback: treat as single question
+    if not sub_questions:
+        sub_questions = [query]
+
+    # ── Pass 2: Per-sub-question cautious legal reasoning ──────────────────
+    sys_prompt = (
+        "You are ContractSense, an advanced legal reasoning AI with strict grounding discipline.\n"
+        "You are given EVIDENCE clauses retrieved from a contract, and a sub-question to analyze.\n\n"
+        "RULES:\n"
+        "1. DO NOT fabricate legal rules. Only reason from the provided evidence.\n"
+        "2. If the evidence does NOT directly address the sub-question:\n"
+        "   - State: 'The agreement does not explicitly address [topic].'\n"
+        "   - Then state what CAN be implied from related clauses, if anything.\n"
+        "3. Use language like: 'implies', 'suggests', 'does not clearly define', 'ambiguous whether'.\n"
+        "4. Never say 'Yes' or 'No' unless a clause explicitly resolves it.\n"
+        "5. Always cite which evidence item you are reasoning from (e.g. Evidence 1).\n"
+        "6. Your answer must be 2-4 sentences maximum per sub-question.\n"
+        "Return ONLY a JSON object: {\"finding\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}"
+    )
+
+    findings = []
+    any_critical = False
+    any_high = False
+    any_resolved = False
+
+    for sq in sub_questions[:8]:  # cap at 8 sub-questions to stay within token budget
+        try:
+            user_msg = f"EVIDENCE:\n{evidence_text}\n\nSUB-QUESTION: {sq}\n\nReturn JSON ONLY."
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_msg}
+                    ],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.1
+                },
+                timeout=20
+            )
+            if r.status_code == 200:
+                data = json.loads(r.json()["choices"][0]["message"]["content"])
+                if isinstance(data, list):
+                    data = data[0] if data else {}
+                finding = str(data.get("finding", "No finding."))
+                resolved = bool(data.get("resolved", False))
+                risk = str(data.get("risk_contribution", "MEDIUM"))
+                findings.append({"q": sq, "finding": finding, "resolved": resolved, "risk": risk})
+                if resolved:
+                    any_resolved = True
+                if risk == "CRITICAL":
+                    any_critical = True
+                elif risk == "HIGH":
+                    any_high = True
+        except Exception as e:
+            findings.append({"q": sq, "finding": f"Analysis unavailable: {e}", "resolved": False, "risk": "MEDIUM"})
+
+    # ── Assemble final answer ──────────────────────────────────────────────
+    if not findings:
         return {
-            "answer": f"SYSTEM ERROR: Exception occurred during API call. {err_msg}",
-            "risk_level": "N/A",
-            "evidence": [],
-            "confidence": "LOW",
-            "decision": "NOT_FOUND",
-            "action": ""
+            "answer": "The system could not decompose or analyze this query against the retrieved evidence.",
+            "risk_level": "N/A", "evidence": [], "confidence": "LOW",
+            "decision": "NOT_FOUND", "action": ""
         }
+
+    answer_lines = []
+    unresolved_count = 0
+    for f in findings:
+        resolved_tag = "✓ Resolved" if f["resolved"] else "⚠ Unresolved/Ambiguous"
+        answer_lines.append(f"**{f['q']}**\n{resolved_tag} — {f['finding']}")
+        if not f["resolved"]:
+            unresolved_count += 1
+
+    full_answer = "\n\n".join(answer_lines)
+
+    if unresolved_count > 0:
+        full_answer += (
+            f"\n\n---\n**Summary:** {unresolved_count} of {len(findings)} issue(s) are not explicitly resolved by this agreement. "
+            "The analysis above identifies the most relevant clauses and their implied scope, "
+            "but definitive conclusions on unresolved points require legal counsel."
+        )
+
+    decision = "ANSWER" if any_resolved else "AMBIGUOUS"
+    risk_level = "CRITICAL" if any_critical else ("HIGH" if any_high else "MEDIUM")
+    confidence = "MEDIUM" if any_resolved else "LOW"
+
+    evidence_list = []
+    for r in evidence_chunks[:3]:
+        c = r["chunk"]
+        evidence_list.append({
+            "clause_id": c.clause_id,
+            "section": c.section,
+            "page": c.page,
+            "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
+        })
+
+    return {
+        "answer": full_answer,
+        "risk_level": risk_level,
+        "evidence": evidence_list,
+        "confidence": confidence,
+        "decision": decision,
+        "action": _make_evidence_action(evidence_list) if decision == "ANSWER" else "",
+    }
+
 
 
 def _generate_api_answer(query, evidence_chunks, evidence_check):
