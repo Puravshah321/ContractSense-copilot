@@ -87,10 +87,14 @@ if "chunk_count" not in st.session_state:
 def extract_pdf_text(uploaded_file):
     try:
         import PyPDF2
+        uploaded_file.seek(0) # IMPORTANT for Streamlit!
         reader = PyPDF2.PdfReader(uploaded_file)
-        return "\n\n".join(p.extract_text() or "" for p in reader.pages)
-    except Exception:
-        return None
+        text = "\n\n".join(p.extract_text() or "" for p in reader.pages)
+        if not text.strip():
+            return None
+        return text
+    except Exception as e:
+        return f"ERROR: {str(e)}"
 
 
 def format_result_as_message(result):
@@ -194,7 +198,7 @@ with st.sidebar:
             st.session_state.messages = []
 
             text = extract_pdf_text(uploaded)
-            if text:
+            if text and not text.startswith("ERROR:"):
                 pipeline = _build_pipeline()
                 count = pipeline.load_document(text, uploaded.name)
                 st.session_state.pipeline = pipeline
@@ -207,9 +211,10 @@ with st.sidebar:
                 st.session_state.messages.append({"role": "assistant", "content": scan_msg})
                 st.rerun()
             else:
+                err_msg = text if text and text.startswith("ERROR:") else "Could not extract text from this PDF. It may be scanned or image-based."
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": "Could not extract text from this PDF. It may be scanned or image-based.",
+                    "content": err_msg,
                 })
                 st.rerun()
 
