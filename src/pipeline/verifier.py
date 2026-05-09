@@ -39,12 +39,14 @@ def _extract_claims(answer_text):
         if claim.lower().startswith(("grounding", "evidence:", "citation:", "decision:")):
             continue
         if claim.lower().rstrip(":") in {
-            "relevant obligations/commitments found",
+            "relevant obligations/ commitments found",
             "ranked risks based on retrieved clauses",
             "comparison points from the contract",
         }:
             continue
         if claim.lower().startswith("according to") and not re.search(r"\b(shall|must|may|will|is|are|does|continues|lasts|requires|states)\b", claim.lower()):
+            continue
+        if re.search(r"^(the agreement does not|it is unclear|it is ambiguous|there is no explicit|does not clearly|unresolved|unclear|ambiguous|not explicitly addressed)", claim.lower()):
             continue
         claims.append(claim)
     return claims
