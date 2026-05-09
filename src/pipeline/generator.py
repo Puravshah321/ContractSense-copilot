@@ -355,9 +355,9 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
             "action": ""
         }
 
-    # ── Build evidence context ──────────────────────────────────────────────
+    # ── Build evidence context (Limit to top 5 for TPM safety) ──────────────
     context_parts = []
-    for i, r in enumerate(evidence_chunks):
+    for i, r in enumerate(evidence_chunks[:5]):
         c = r["chunk"]
         context_parts.append(
             f"[Evidence {i+1}] clause_id: {c.clause_id} | section: {c.section} | page: {c.page}\n{c.text}"
