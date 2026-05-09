@@ -258,8 +258,11 @@ class ContractSensePipeline:
             effective_evidence_check["confidence"] = max(float(effective_evidence_check.get("confidence", 0.0)), 0.35)
 
         # ── NEW Stage 6A: Evidence-Aware Synthesis for analytical queries
+        use_llm_generator = mode in ("groq_api", "hf_api", "api", "llm")
+        
         if (
-            reasoning_output is not None
+            not use_llm_generator
+            and reasoning_output is not None
             and is_analytical_path
             and effective_evidence_check["decision"] == "SUFFICIENT"
             and reasoning_output.explicit_findings
@@ -275,7 +278,7 @@ class ContractSensePipeline:
                 "decision": "ANSWER",
                 "action": _make_action_from_reasoning(reasoning_output),
             }
-        elif effective_evidence_check["decision"] == "SUFFICIENT" and should_use_structured_controller(query_profile):
+        elif not use_llm_generator and effective_evidence_check["decision"] == "SUFFICIENT" and should_use_structured_controller(query_profile):
             answer_data = generate_structured_answer(user_query, retrieved, effective_evidence_check, query_profile)
         else:
             answer_data = generate_grounded_answer(
