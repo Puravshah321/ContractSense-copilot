@@ -379,7 +379,7 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
                 "Content-Type": "application/json"
             },
             json={
-                "model": "llama3-70b-8192",
+                "model": "llama-3.3-70b-versatile",
                 "messages": [
                     {"role": "system", "content": sys_prompt},
                     {"role": "user", "content": user_prompt}
