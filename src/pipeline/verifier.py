@@ -108,6 +108,10 @@ def verify_grounding(answer_data, evidence_chunks):
         unsupported_claims, and compact details.
     """
     answer_text = answer_data.get("answer", "")
+    if isinstance(answer_text, list):
+        answer_text = "\n".join(str(x) for x in answer_text)
+    elif not isinstance(answer_text, str):
+        answer_text = str(answer_text)
     decision = answer_data.get("decision", "ANSWER")
 
     if decision == "NOT_FOUND":
