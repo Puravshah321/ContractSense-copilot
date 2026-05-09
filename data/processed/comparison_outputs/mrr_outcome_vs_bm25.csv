@@ -1,0 +1,6 @@
+model,better_than_bm25,same_as_bm25,worse_than_bm25,mean_delta_mrr@5
+MiniLM cross-encoder (base),6,193,1,0.015833333333333335
+MiniLM-L-6-v2 (baseline reranker),6,193,1,0.015833333333333335
+MiniLM-L-12-v2,6,192,2,0.013333333333333334
+BAAI/bge-reranker-large,5,194,1,0.013333333333333334
+BAAI/bge-reranker-base,5,191,4,0.0033333333333333335

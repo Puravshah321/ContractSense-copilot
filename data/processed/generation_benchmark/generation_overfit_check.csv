@@ -1,0 +1,4 @@
+model,train_loss,eval_loss,gap,overfit
+Mistral-7B-Instruct-v0.2,0.482,0.531,0.049,False
+Phi-3-mini-4k-instruct,0.539,0.617,0.078,False
+Qwen2.5-7B-Instruct,0.511,0.572,0.061,False

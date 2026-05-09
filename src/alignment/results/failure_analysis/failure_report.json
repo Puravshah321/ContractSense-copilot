@@ -1,0 +1,41 @@
+{
+  "total_samples": 200,
+  "baseline": {
+    "error_type_counts": {
+      "missing_risk_label": 200,
+      "no_action": 200,
+      "missing_citation": 200
+    }
+  },
+  "dpo_aligned": {
+    "error_type_counts": {
+      "none": 200
+    }
+  },
+  "improvements": {
+    "no_action": {
+      "baseline": 200,
+      "dpo": 0,
+      "reduction": 200,
+      "reduction_pct": 100.0
+    },
+    "missing_citation": {
+      "baseline": 200,
+      "dpo": 0,
+      "reduction": 200,
+      "reduction_pct": 100.0
+    },
+    "missing_risk_label": {
+      "baseline": 200,
+      "dpo": 0,
+      "reduction": 200,
+      "reduction_pct": 100.0
+    },
+    "none": {
+      "baseline": 0,
+      "dpo": 200,
+      "reduction": -200,
+      "reduction_pct": -20000.0
+    }
+  }
+}

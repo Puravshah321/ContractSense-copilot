@@ -1,0 +1,60 @@
+{
+  "tested_base_models": [
+    "mistralai/Mistral-7B-Instruct-v0.2",
+    "microsoft/Phi-3-mini-4k-instruct",
+    "Qwen/Qwen2.5-7B-Instruct"
+  ],
+  "best_base_model": {
+    "base_model": "mistralai/Mistral-7B-Instruct-v0.2",
+    "model_name": "Mistral-7B-Instruct-v0.2",
+    "variant": "baseline",
+    "train_loss": NaN,
+    "eval_loss": NaN,
+    "generalization_gap": NaN,
+    "overfit_flag": false,
+    "json_valid_rate": 0.8149,
+    "citation_recall": 0.8056,
+    "risk_salience_score": 0.8415,
+    "actionability_score": 0.8862,
+    "jargon_elimination_rate": 0.8405,
+    "eval_cases": NaN,
+    "quality_score": 0.8351,
+    "final_score": 0.8351
+  },
+  "best_finetuned_model": {
+    "base_model": "mistralai/Mistral-7B-Instruct-v0.2",
+    "model_name": "Mistral-7B-Instruct-v0.2",
+    "variant": "lora_finetuned",
+    "train_loss": 0.482,
+    "eval_loss": 0.531,
+    "generalization_gap": 0.049,
+    "overfit_flag": false,
+    "json_valid_rate": 0.9583,
+    "citation_recall": 0.8417,
+    "risk_salience_score": 0.875,
+    "actionability_score": 0.925,
+    "jargon_elimination_rate": 0.9102,
+    "eval_cases": 120.0,
+    "quality_score": 0.8852,
+    "final_score": 0.8778
+  },
+  "winner": {
+    "base_model": "mistralai/Mistral-7B-Instruct-v0.2",
+    "model_name": "Mistral-7B-Instruct-v0.2",
+    "variant": "lora_finetuned",
+    "train_loss": 0.482,
+    "eval_loss": 0.531,
+    "generalization_gap": 0.049,
+    "overfit_flag": false,
+    "json_valid_rate": 0.9583,
+    "citation_recall": 0.8417,
+    "risk_salience_score": 0.875,
+    "actionability_score": 0.925,
+    "jargon_elimination_rate": 0.9102,
+    "eval_cases": 120.0,
+    "quality_score": 0.8852,
+    "final_score": 0.8778
+  },
+  "winner_rule": "LoRA wins: non-overfit finetuned model beats best baseline",
+  "overfit_models": []
+}

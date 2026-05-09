@@ -1,0 +1,17 @@
+{
+  "base_model": "mistralai/Mistral-7B-Instruct-v0.2",
+  "model_name": "Mistral-7B-Instruct-v0.2",
+  "variant": "lora_finetuned",
+  "train_loss": 0.482,
+  "eval_loss": 0.531,
+  "generalization_gap": 0.049,
+  "overfit_flag": false,
+  "json_valid_rate": 0.9583,
+  "citation_recall": 0.8417,
+  "risk_salience_score": 0.875,
+  "actionability_score": 0.925,
+  "jargon_elimination_rate": 0.9102,
+  "eval_cases": 120.0,
+  "quality_score": 0.8852,
+  "final_score": 0.8778
+}

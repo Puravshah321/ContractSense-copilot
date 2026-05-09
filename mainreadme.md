@@ -29,6 +29,7 @@
 8. [Team Division of Work](#team-division-of-work)
 9. [Datasets Reference](#datasets-reference)
 10. [Compute Requirements](#compute-requirements)
+11. [Implemented Stage 6 in This Branch](#implemented-stage-6-in-this-branch)
 
 ---
 
@@ -1682,3 +1683,123 @@ curl -X POST "http://localhost:8000/query" \
 ---
 
 *ContractSense — because the most dangerous words in business are "I didn't read the fine print."*
+
+---
+
+## Implemented Stage 6 in This Branch
+
+This branch now includes a concrete Stage 6 implementation that follows your architecture:
+
+- LangChain + LangGraph orchestration with a strict system prompt for citation-first JSON output.
+- Multi-model LoRA candidate training for generator models.
+- Baseline vs LoRA benchmark for each candidate.
+- Automatic overfitting checks via train/eval loss gap.
+- Plot export for model comparison and final model selection.
+
+### Added Code
+
+- `src/generation/prompt_templates.py`
+    - Citation-first system prompt and deterministic input payload builder.
+- `src/generation/generator.py`
+    - Base/LoRA model loader and robust JSON parser.
+- `src/generation/langgraph_workflow.py`
+    - LangGraph state graph: `prepare_prompt -> generate -> validate`.
+- `src/generation/train_generator.py`
+    - 4-bit LoRA SFT training pipeline for multiple candidate base models.
+- `src/generation/benchmark_generation.py`
+    - Baseline vs LoRA evaluation + plot generation + overfit report export.
+- `scripts/train_generation_models.py`
+    - End-to-end Stage 6 candidate training runner.
+- `scripts/benchmark_generation_models.py`
+    - End-to-end benchmark + best-model selection.
+- `scripts/run_generation_langgraph_demo.py`
+    - Single-query Stage 6 demo runner with LangGraph.
+- `notebooks/05_generation_phase_langgraph.ipynb`
+    - Notebook workflow for the full architecture sections and Stage 6 execution.
+
+### Candidate Models for Stage 6
+
+Current candidate set in training script:
+
+1. `mistralai/Mistral-7B-Instruct-v0.2`
+2. `Qwen/Qwen2.5-7B-Instruct`
+3. `microsoft/Phi-3-mini-4k-instruct`
+
+You can override/add candidates by passing repeated `--model-name` arguments.
+
+### Run Commands (Notebook uses these)
+
+```bash
+python scripts/train_generation_models.py \
+    --clauses-path data/processed/clauses.jsonl \
+    --train-out data/processed/generation_train.jsonl \
+    --eval-out data/processed/generation_eval.jsonl \
+    --models-out data/processed/generation_models \
+    --benchmark-dir data/processed/generation_benchmark \
+    --epochs 2
+
+python scripts/benchmark_generation_models.py \
+    --training-summary data/processed/generation_benchmark/generation_training_summary.json \
+    --holdout-path data/processed/generation_eval.jsonl \
+    --output-dir data/processed/generation_benchmark
+```
+
+### Output Artifacts (Auto-generated)
+
+- `data/processed/generation_benchmark/generation_training_summary.json`
+- `data/processed/generation_benchmark/generation_model_comparison.csv`
+- `data/processed/generation_benchmark/generation_model_comparison.json`
+- `data/processed/generation_benchmark/best_generation_model.json`
+- `data/processed/generation_benchmark/generation_citation_recall_comparison.png`
+- `data/processed/generation_benchmark/generation_metric_delta_by_model.png`
+- `data/processed/generation_benchmark/generation_overfit_check.csv`
+
+### Stage 6 Result Table (Filled after run)
+
+Use `generation_model_comparison.csv` as source of truth.
+
+| Model | Variant | Citation Recall | Risk Salience | Actionability | Jargon Elimination | JSON Valid Rate | Overfit Flag |
+|---|---|---:|---:|---:|---:|---:|---|
+| Mistral-7B-Instruct-v0.2 | baseline | from csv | from csv | from csv | from csv | from csv | no |
+| Mistral-7B-Instruct-v0.2 | lora_finetuned | from csv | from csv | from csv | from csv | from csv | from overfit csv |
+| Qwen2.5-7B-Instruct | baseline | from csv | from csv | from csv | from csv | from csv | no |
+| Qwen2.5-7B-Instruct | lora_finetuned | from csv | from csv | from csv | from csv | from csv | from overfit csv |
+| Phi-3-mini-4k-instruct | baseline | from csv | from csv | from csv | from csv | from csv | no |
+| Phi-3-mini-4k-instruct | lora_finetuned | from csv | from csv | from csv | from csv | from csv | from overfit csv |
+
+### Overfitting Policy
+
+- `generalization_gap = eval_loss - train_loss`
+- `overfit_flag = True` when gap > 0.35
+- Final model should satisfy:
+    - Highest combined generation quality metrics on holdout.
+    - `overfit_flag = False`.
+
+### How the Best Stage 6 Model is Selected
+
+`scripts/benchmark_generation_models.py` selects the top LoRA model by:
+
+1. Citation Recall (primary)
+2. Risk Salience Score
+3. Actionability Score
+
+The selected winner is written to:
+
+- `data/processed/generation_benchmark/best_generation_model.json`
+
+### LangGraph Stage 6 System Prompt Behavior
+
+The graph enforces:
+
+1. Citation-first grounded response
+2. Risk-level in first explanation sentence
+3. Strict JSON schema output
+4. Actionable recommendation for business users
+
+This is aligned with your architecture block:
+
+```
+STAGE 6: GENERATION
+Mistral-7B + LoRA
+Citation-first output
+```

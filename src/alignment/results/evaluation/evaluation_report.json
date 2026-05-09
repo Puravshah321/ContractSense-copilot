@@ -1,0 +1,48 @@
+{
+  "summary": {
+    "risk_salience": {
+      "baseline": 0.0,
+      "lora": 1.0,
+      "dpo": 1.0,
+      "dpo_vs_baseline": 1.0
+    },
+    "actionability": {
+      "baseline": 0.0,
+      "lora": 1.0,
+      "dpo": 1.0,
+      "dpo_vs_baseline": 1.0
+    },
+    "citation_present": {
+      "baseline": 0.0,
+      "lora": 1.0,
+      "dpo": 1.0,
+      "dpo_vs_baseline": 1.0
+    },
+    "readability": {
+      "baseline": 0.8077,
+      "lora": 0.878,
+      "dpo": 0.878,
+      "dpo_vs_baseline": 0.0703
+    },
+    "format_compliance": {
+      "baseline": 0.0,
+      "lora": 1.0,
+      "dpo": 1.0,
+      "dpo_vs_baseline": 1.0
+    },
+    "overall_quality": {
+      "baseline": 0.1212,
+      "lora": 0.9817,
+      "dpo": 0.9817,
+      "dpo_vs_baseline": 0.8605
+    }
+  },
+  "models": {
+    "baseline": {
+      "avg_quality": 0.1212
+    },
+    "dpo_aligned": {
+      "avg_quality": 0.9817
+    }
+  }
+}

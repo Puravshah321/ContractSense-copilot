@@ -1,0 +1,42 @@
+{
+  "base_model": "distilbert-base-uncased",
+  "candidate_models": [
+    "google/electra-small-discriminator",
+    "prajjwal1/bert-tiny"
+  ],
+  "split_strategy": "group_contract",
+  "selection_metric": "f1_macro",
+  "best_model": "distilbert-base-uncased",
+  "best_model_path": "data/processed/tool_policy_benchmark/distilbert_base_uncased",
+  "best_accuracy": 1.0,
+  "best_f1_macro": 1.0,
+  "results": [
+    {
+      "model_name": "distilbert-base-uncased",
+      "model_path": "data/processed/tool_policy_benchmark/distilbert_base_uncased",
+      "accuracy": 1.0,
+      "f1_macro": 1.0,
+      "samples_train": 1174.0,
+      "samples_eval": 217.0,
+      "is_base_model": true
+    },
+    {
+      "model_name": "google/electra-small-discriminator",
+      "model_path": "data/processed/tool_policy_benchmark/google_electra_small_discriminator",
+      "accuracy": 1.0,
+      "f1_macro": 1.0,
+      "samples_train": 1174.0,
+      "samples_eval": 217.0,
+      "is_base_model": false
+    },
+    {
+      "model_name": "prajjwal1/bert-tiny",
+      "model_path": "data/processed/tool_policy_benchmark/prajjwal1_bert_tiny",
+      "accuracy": 1.0,
+      "f1_macro": 1.0,
+      "samples_train": 1174.0,
+      "samples_eval": 217.0,
+      "is_base_model": false
+    }
+  ]
+}
