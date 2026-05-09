@@ -287,6 +287,12 @@ class ContractSensePipeline:
                 user_query, retrieved, effective_evidence_check, mode=mode,
             )
 
+        ans_text = answer_data.get("answer", "")
+        if isinstance(ans_text, list):
+            answer_data["answer"] = "\n".join(str(x) for x in ans_text)
+        elif not isinstance(ans_text, str):
+            answer_data["answer"] = str(ans_text)
+
         if is_analytical_path and analytical_partial and answer_data["decision"] == "ANSWER":
             if coverage["missing_aspects"]:
                 missing = ", ".join(coverage["missing_aspects"])

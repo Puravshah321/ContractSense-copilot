@@ -119,7 +119,11 @@ def format_result_as_message(result):
     )
 
     parts.append("")  # spacing
-    parts.append(result.answer)
+    
+    ans = result.answer
+    if isinstance(ans, list):
+        ans = "\n".join(str(x) for x in ans)
+    parts.append(str(ans))
 
     # Evidence-only action
     if result.action and result.decision != "NOT_FOUND":
