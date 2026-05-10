@@ -346,20 +346,13 @@ class ContractSensePipeline:
             verification = verify_grounding(answer_data, retrieved)
             trace.append(f"  -> Fallback verdict: {verification['verdict']} ({verification['supported_ratio']:.0%} supported)")
 
-        if verification["verdict"] == "REJECTED" and answer_data["decision"] in {"ANSWER", "AMBIGUOUS"}:
+        if verification["verdict"] in {"NOT_FOUND", "REJECTED"} and answer_data["decision"] in {"ANSWER", "AMBIGUOUS"}:
             # ── LLM-generated legal memos are exempt from hard NOT_FOUND override ──
-            # The verifier's claim-extraction cannot parse structured memo format correctly.
-            # LLM memos are already self-annotated with AMBIGUOUS/NOT_FOUND/OUTSIDE_AGREEMENT
-            # status per issue — they don't need a system-level override.
-            if mode in ("groq_api", "gemini_api") and is_analytical_path:
+            if mode in ("groq_api", "gemini_api"):
                 trace.append("Stage 8B: LLM memo exempted from NOT_FOUND override (self-annotated uncertainty)")
-                # Just update confidence downward if needed
-                if answer_data.get("confidence") == "HIGH":
-                    answer_data["confidence"] = "MEDIUM"
             else:
                 trace.append("Stage 8B: Final safeguard - unsupported rule-based answer changed to NOT_FOUND")
                 answer_data["decision"] = "NOT_FOUND"
-                answer_data["confidence"] = "LOW"
                 answer_data["risk_level"] = "N/A"
                 missing_items = coverage.get("missing_aspects", [])
                 clean_aspects = [m.replace("_", " ").title() for m in missing_items if m != "general"]
@@ -376,6 +369,18 @@ class ContractSensePipeline:
                     )
                 answer_data["action"] = ""
                 answer_data["evidence"] = []
+
+        # ── Strict Confidence Calibration ─────────────────────────────────────
+        # Explicit support -> HIGH
+        # Partial support / Ambiguous -> MEDIUM
+        # Not found / Rejected / Weak -> LOW
+        v = verification["verdict"]
+        if v in {"EXPLICITLY_SUPPORTED", "VERIFIED"}:
+            answer_data["confidence"] = "HIGH"
+        elif v in {"PARTIALLY_SUPPORTED", "PARTIALLY_VERIFIED", "AMBIGUOUS"}:
+            answer_data["confidence"] = "MEDIUM"
+        else:
+            answer_data["confidence"] = "LOW"
 
         if False and verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
             if is_analytical_path and mode in ("groq_api", "hf_api"):

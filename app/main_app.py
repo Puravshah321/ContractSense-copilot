@@ -234,7 +234,15 @@ def render_assistant_message(msg: dict):
     ratio   = v.get("supported_ratio", 0.0)
     if verdict:
         pct   = int(ratio * 100)
-        label = {"VERIFIED": "✅ Verified", "PARTIALLY_VERIFIED": "🟡 Partial", "REJECTED": "❌ Rejected"}.get(verdict, verdict)
+        label = {
+            "EXPLICITLY_SUPPORTED": "✅ Explicitly Supported",
+            "PARTIALLY_SUPPORTED": "🟡 Partially Supported",
+            "AMBIGUOUS": "🟠 Ambiguous",
+            "NOT_FOUND": "❌ Not Found",
+            "VERIFIED": "✅ Verified", 
+            "PARTIALLY_VERIFIED": "🟡 Partial", 
+            "REJECTED": "❌ Rejected"
+        }.get(verdict, verdict)
         st.progress(ratio, text=f"Grounding: {label} ({pct}% supported)")
 
 
