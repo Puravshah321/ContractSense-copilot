@@ -237,21 +237,18 @@ class ContractSensePipeline:
         # Stage 5: Decision gate
         trace.append("Stage 5C: Decision gate...")
         analytical_partial = False
-        if evidence_check["decision"] == "CONFLICTING" or (reasoning_output and reasoning_output.conflicts):
+        
+        if not retrieved:
+            trace.append("  -> GATE: NOT_FOUND (No evidence retrieved at all)")
+        elif evidence_check["decision"] == "CONFLICTING" or (reasoning_output and reasoning_output.conflicts):
             trace.append("  -> GATE: ESCALATE because evidence appears conflicting")
-        elif is_factual_path and evidence_check["decision"] == "INSUFFICIENT":
-            trace.append("  -> GATE: NOT_FOUND (strict factual mode)")
-        elif is_analytical_path:
-            # For analytical/dispute queries, ALWAYS route to the LLM.
-            # The LLM can handle partial or missing evidence gracefully by flagging gaps.
-            # Blocking it here causes the worst possible UX: a hard NOT_FOUND on complex queries.
+        else:
+            # Let the generator handle everything and assign PARTIALLY_SUPPORTED or NOT_FOUND
             analytical_partial = True
             if evidence_check["decision"] == "INSUFFICIENT":
-                trace.append("  -> GATE: PARTIAL analytical; evidence is weak but routing to LLM with gap flags")
+                trace.append("  -> GATE: PARTIAL support detected; routing to LLM for partial reasoning")
             else:
                 trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
-        else:
-            trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
 
         trace.append("Stage 6: Generating answer...")
         import os

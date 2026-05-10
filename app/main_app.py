@@ -145,11 +145,52 @@ def _conf_color(conf):
     return {"HIGH": "🟢", "MEDIUM": "🟡", "LOW": "⚫"}.get((conf or "").upper(), "⚫")
 
 
+import re
+
+def _render_styled_clause(text, query=""):
+    """Render full clause text in a scrollable, styled panel with basic highlighting."""
+    # Basic highlighting for common terms if they appear
+    terms_to_highlight = ["malware", "harmful code", "malicious code", "liability", "indemnify", "survive", "terminate", "confidential"]
+    html_text = text.replace("<", "&lt;").replace(">", "&gt;")
+    
+    # Simple naive highlighting for visual demo purposes
+    for term in terms_to_highlight:
+        # Case insensitive replace using regex
+        pattern = re.compile(f"({term})", re.IGNORECASE)
+        html_text = pattern.sub(r"<span style='background-color:#4F8EF733; color:#8DB3F9; padding:0 2px; border-radius:3px; font-weight:600;'>\1</span>", html_text)
+        
+    return f"<div style='background:#131929; padding:14px; border-radius:8px; border:1px solid #1C2333; font-family:\"JetBrains Mono\", monospace; font-size:0.82rem; color:#A0AEC0; white-space:pre-wrap; max-height:400px; overflow-y:auto; line-height:1.5;'>{html_text}</div>"
+
+
 def render_assistant_message(msg: dict):
     """
     Render a stored assistant message using native Streamlit components.
-    No raw HTML injected into chat context — 100% reliable across all Streamlit versions.
     """
+    if msg.get("is_risk_scan"):
+        risk_groups = msg.get("risk_groups", {})
+        total = sum(len(v) for v in (risk_groups or {}).values())
+        if not risk_groups or total == 0:
+            st.markdown(f"I've analyzed **{st.session_state.pdf_name}** ({st.session_state.chunk_count} sections). No specific risk clauses identified. Ask me anything about the contract.")
+            return
+
+        st.markdown(f"I've analyzed **{st.session_state.pdf_name}** ({st.session_state.chunk_count} sections). Found **{total} distinct risk clause(s)**:")
+        RISK_ICONS = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}
+        for level in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
+            items = risk_groups.get(level, [])
+            if not items: continue
+            st.markdown(f"### {RISK_ICONS[level]} {level} Risk — {len(items)} clause{'s' if len(items) > 1 else ''}")
+            for item in items:
+                sec  = item.get("section", "General")
+                cat  = item.get("category", "")
+                with st.expander(f"📎 {cat} · {sec}"):
+                    if item.get("legal_tags"):
+                        st.markdown(" ".join(f"`{t}`" for t in item.get("legal_tags")[:4]))
+                    st.markdown(_render_styled_clause(item.get("text", "")), unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("Ask me anything about specific clauses, disputes, risks, or obligations.")
+        return
+
+
     risk   = msg.get("risk", "N/A")
     dec    = msg.get("decision", "")
     conf   = msg.get("confidence", "LOW")
@@ -164,8 +205,7 @@ def render_assistant_message(msg: dict):
     with col3:
         st.markdown(f"{_conf_color(conf)} **Confidence:** `{conf}`")
     with col4:
-        st.markdown(f"<span style='color:#374151;font-size:0.75rem;font-family:monospace'>{lat:.0f}ms</span>",
-                    unsafe_allow_html=True)
+        st.markdown(f"<span style='color:#374151;font-size:0.75rem;font-family:monospace'>{lat:.0f}ms</span>", unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -175,19 +215,18 @@ def render_assistant_message(msg: dict):
     # ── Evidence expander ─────────────────────────────────────────────────
     evidence = msg.get("evidence", [])
     if evidence:
-        with st.expander(f"📎 Retrieved Evidence ({len(evidence)} clauses)", expanded=False):
-            for ev in evidence:
-                cid  = ev.get("clause_id", "?")
-                sec  = ev.get("section", "General")
-                pg   = ev.get("page", "?")
-                txt  = ev.get("text", "")[:280]
-                tags = ev.get("legal_tags", [])
+        st.markdown("<br/>", unsafe_allow_html=True)
+        for ev in evidence:
+            cid  = ev.get("clause_id", "?")
+            sec  = ev.get("section", "General")
+            pg   = ev.get("page", "?")
+            txt  = ev.get("text", "")
+            tags = ev.get("legal_tags", [])
 
-                st.markdown(f"**`{cid}`** · {sec} · p.{pg}")
-                st.caption(txt + ("..." if len(ev.get("text", "")) > 280 else ""))
+            with st.expander(f"📎 {cid} · {sec} · p.{pg}", expanded=False):
                 if tags:
                     st.markdown(" ".join(f"`{t}`" for t in tags[:5]))
-                st.markdown("---")
+                st.markdown(_render_styled_clause(txt), unsafe_allow_html=True)
 
     # ── Grounding bar ─────────────────────────────────────────────────────
     v = msg.get("verification") or {}
@@ -195,53 +234,8 @@ def render_assistant_message(msg: dict):
     ratio   = v.get("supported_ratio", 0.0)
     if verdict:
         pct   = int(ratio * 100)
-        label = {"VERIFIED": "✅ Verified", "PARTIALLY_VERIFIED": "🟡 Partial", "REJECTED": "❌ Rejected"}.get(
-            verdict, verdict
-        )
+        label = {"VERIFIED": "✅ Verified", "PARTIALLY_VERIFIED": "🟡 Partial", "REJECTED": "❌ Rejected"}.get(verdict, verdict)
         st.progress(ratio, text=f"Grounding: {label} ({pct}% supported)")
-
-
-def run_initial_scan():
-    pipeline    = st.session_state.pipeline
-    risk_groups = pipeline.get_all_risks()
-
-    total = sum(len(v) for v in (risk_groups or {}).values())
-    if not risk_groups or total == 0:
-        return (
-            f"I've analyzed **{st.session_state.pdf_name}** "
-            f"({st.session_state.chunk_count} sections identified). "
-            "No specific risk clauses identified. Ask me anything about the contract."
-        )
-
-    RISK_ICONS = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}
-
-    lines = [
-        f"I've analyzed **{st.session_state.pdf_name}** "
-        f"({st.session_state.chunk_count} sections identified). "
-        f"Found **{total} distinct risk clause(s)**:\n"
-    ]
-
-    for level in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
-        items = risk_groups.get(level, [])
-        if not items:
-            continue
-        icon = RISK_ICONS[level]
-        lines.append(f"### {icon} {level} Risk — {len(items)} clause{'s' if len(items) > 1 else ''}")
-        for item in items:
-            sec  = item.get("section", "General")
-            txt  = item.get("text", "")
-            cat  = item.get("category", "")
-            tags = item.get("legal_tags", [])
-            lines.append(f"**{cat}** · `{sec}`")
-            if txt:
-                preview = txt[:280] + ("..." if len(txt) > 280 else "")
-                lines.append(f"> {preview}")
-            if tags:
-                lines.append(" ".join(f"`{t}`" for t in tags[:4]))
-            lines.append("")
-
-    lines.append("---\nAsk me anything about specific clauses, disputes, risks, or obligations.")
-    return "\n\n".join(lines)
 
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
@@ -266,11 +260,13 @@ with st.sidebar:
             st.session_state.chunk_count = count
 
             with st.spinner("Scanning for risks…"):
-                scan_body = run_initial_scan()
+                risk_groups = pipeline.get_all_risks()
 
             st.session_state.messages.append({
                 "role":     "assistant",
-                "answer_md": scan_body,
+                "answer_md": "",
+                "is_risk_scan": True,
+                "risk_groups": risk_groups,
                 "risk": "N/A", "decision": "SCAN", "confidence": "N/A", "latency": 0,
                 "evidence": [], "verification": None,
             })
