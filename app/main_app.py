@@ -239,7 +239,7 @@ def render_assistant_message(msg: dict):
             txt  = ev.get("text", "")
             tags = ev.get("legal_tags", [])
 
-            with st.expander(f"📎 {cid} · {sec} · p.{pg}", expanded=False):
+            with st.expander(f"▶ View Full Clause · 📎 {cid} · {sec} · p.{pg}", expanded=False):
                 if tags:
                     st.markdown(" ".join(f"`{t}`" for t in tags[:5]))
                 st.markdown(_render_styled_clause(txt, query=last_query), unsafe_allow_html=True)
@@ -251,15 +251,17 @@ def render_assistant_message(msg: dict):
     if verdict:
         pct   = int(ratio * 100)
         label = {
-            "STRONGLY_GROUNDED": "✅ Strongly Grounded",
+            "STRONGLY_GROUNDED": "🟢 Strongly Grounded",
             "PARTIALLY_GROUNDED": "🟡 Partially Grounded",
-            "WEAKLY_GROUNDED": "🟠 Weakly Grounded",
+            "LIMITED_GROUNDING": "🟠 Limited Grounding",
+            "WEAK_EVIDENCE": "⚪ Weak Evidence",
             "UNSUPPORTED": "❌ Unsupported",
-            "EXPLICITLY_SUPPORTED": "✅ Explicitly Supported",
+            # Fallbacks
+            "EXPLICITLY_SUPPORTED": "🟢 Explicitly Supported",
             "PARTIALLY_SUPPORTED": "🟡 Partially Supported",
             "AMBIGUOUS": "🟠 Ambiguous",
             "NOT_FOUND": "❌ Not Found",
-            "VERIFIED": "✅ Verified", 
+            "VERIFIED": "🟢 Verified", 
             "PARTIALLY_VERIFIED": "🟡 Partial", 
             "REJECTED": "❌ Rejected"
         }.get(verdict, verdict)

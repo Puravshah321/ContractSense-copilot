@@ -377,7 +377,7 @@ class ContractSensePipeline:
         v = verification["verdict"]
         if v in {"STRONGLY_GROUNDED", "EXPLICITLY_SUPPORTED", "VERIFIED"}:
             answer_data["confidence"] = "HIGH"
-        elif v in {"PARTIALLY_GROUNDED", "PARTIALLY_SUPPORTED", "PARTIALLY_VERIFIED"}:
+        elif v in {"PARTIALLY_GROUNDED", "LIMITED_GROUNDING", "PARTIALLY_SUPPORTED", "PARTIALLY_VERIFIED"}:
             answer_data["confidence"] = "MEDIUM"
         else:
             answer_data["confidence"] = "LOW"

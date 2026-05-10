@@ -343,12 +343,12 @@ STATUS CLASSIFICATION (pick exactly one per issue):
 STRICT RULES:
 1. NEVER invent or paraphrase clauses that were not provided in EVIDENCE.
 2. Use OUTSIDE_AGREEMENT only when the question concerns real-world events the contract is silent on.
-3. Cite Evidence numbers (e.g. Evidence 3) when quoting retrieved clauses.
+3. SILENCE ≠ CONFLICT. If no contradictory clauses are retrieved, use UNRESOLVED, not CONFLICTING.
 4. For each issue produce four SEPARATE fields — evidence, interpretation, limitation, conclusion.
 5. evidence  = direct quote or precise citation from the retrieved clause (or "No clause retrieved.").
 6. interpretation = what that evidence means for THIS specific legal question.
 7. limitation = what the evidence explicitly does NOT cover or resolve.
-8. conclusion = one definitive sentence on what the contract resolves (or fails to resolve). USE PROFESSIONAL, NON-ABSOLUTE LANGUAGE (e.g., "The agreement strongly limits..." instead of "The developer cannot...").
+8. conclusion = one definitive sentence. USE MATURE, NON-ABSOLUTE LANGUAGE (e.g. "The agreement strongly limits recovery" instead of "The developer cannot recover"). Avoid words like "never" or "cannot".
 9. Return ONLY a valid JSON object matching this schema exactly:
 {
   "report_title": "DISPUTE ANALYSIS REPORT",
@@ -586,12 +586,12 @@ STATUS CLASSIFICATION (pick exactly one per issue):
 
 STRICT RULES:
 1. NEVER invent clauses. Only reference the provided EVIDENCE.
-2. For each issue, produce four separate fields: evidence, interpretation, limitation, conclusion.
-3. evidence = direct quote or citation from retrieved clause (or "No clause retrieved.").
-4. interpretation = what that evidence means for THIS specific legal question.
-5. limitation = what the evidence does NOT cover or explicitly exclude.
-6. conclusion = one definitive sentence on what the contract resolves (or fails to). USE PROFESSIONAL, NON-ABSOLUTE LANGUAGE (e.g., "The agreement strongly limits..." instead of "The developer cannot...").
-7. Cite Evidence numbers (e.g. Evidence 2) when referencing clauses.
+2. SILENCE ≠ CONFLICT. If no contradictory clauses are retrieved, use UNRESOLVED, not CONFLICTING.
+3. For each issue, produce four separate fields: evidence, interpretation, limitation, conclusion.
+4. evidence = direct quote or citation from retrieved clause (or "No clause retrieved.").
+5. interpretation = what that evidence means for THIS specific legal question.
+6. limitation = what the evidence does NOT cover or explicitly exclude.
+7. conclusion = one definitive sentence. USE MATURE, NON-ABSOLUTE LANGUAGE (e.g. "The agreement strongly limits recovery" instead of "The developer cannot recover"). Avoid words like "never" or "cannot".
 
 Return ONLY a valid JSON object:
 {

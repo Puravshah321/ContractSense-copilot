@@ -188,12 +188,14 @@ def verify_grounding(answer_data, evidence_chunks):
             details.append(f"UNSUPPORTED ({score:.2f}): {claim[:80]}...")
 
     ratio = supported / len(claims)
-    if ratio >= 0.80:
+    if ratio >= 0.75:
         verdict = "STRONGLY_GROUNDED"
     elif ratio >= 0.50:
         verdict = "PARTIALLY_GROUNDED"
     elif ratio >= 0.30:
-        verdict = "WEAKLY_GROUNDED"
+        verdict = "LIMITED_GROUNDING"
+    elif ratio >= 0.15:
+        verdict = "WEAK_EVIDENCE"
     else:
         verdict = "UNSUPPORTED"
 
