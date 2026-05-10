@@ -122,6 +122,12 @@ _CLAUSE_PATTERNS = [
             r"\bransomware\b",
             r"\bencrypt\w*\b",
             r"\bsecurity\s+incident\b",
+            r"\bmalware\b",
+            r"\bmalicious\s+code\b",
+            r"\bharmful\s+code\b",
+            r"\bunauthorized\s+code\b",
+            r"\bvirus\b",
+            r"\bspyware\b",
         ],
     ),
     (

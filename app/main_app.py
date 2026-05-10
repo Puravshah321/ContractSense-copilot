@@ -202,23 +202,45 @@ def render_assistant_message(msg: dict):
 
 
 def run_initial_scan():
-    pipeline = st.session_state.pipeline
-    results  = pipeline.get_all_risks()
-    if not results:
-        return "I've analyzed your document but couldn't identify specific risk clauses. Ask me anything about the contract."
+    pipeline    = st.session_state.pipeline
+    risk_groups = pipeline.get_all_risks()
+
+    total = sum(len(v) for v in (risk_groups or {}).values())
+    if not risk_groups or total == 0:
+        return (
+            f"I've analyzed **{st.session_state.pdf_name}** "
+            f"({st.session_state.chunk_count} sections identified). "
+            "No specific risk clauses identified. Ask me anything about the contract."
+        )
+
+    RISK_ICONS = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}
 
     lines = [
         f"I've analyzed **{st.session_state.pdf_name}** "
         f"({st.session_state.chunk_count} sections identified). "
-        "Here are the key risks found:\n"
+        f"Found **{total} distinct risk clause(s)**:\n"
     ]
-    for r in results:
-        icon    = _risk_icon(r.risk_level)
-        sec     = r.evidence[0].get("section", "General") if r.evidence else "General"
-        preview = "\n".join((r.answer or "").split("\n")[:3])
-        lines.append(f"{icon} **{r.risk_level} risk** — {sec}\n\n{preview}\n")
 
-    lines.append("---\nAsk me anything about specific clauses, risks, obligations, or dispute scenarios.")
+    for level in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
+        items = risk_groups.get(level, [])
+        if not items:
+            continue
+        icon = RISK_ICONS[level]
+        lines.append(f"### {icon} {level} Risk — {len(items)} clause{'s' if len(items) > 1 else ''}")
+        for item in items:
+            sec  = item.get("section", "General")
+            txt  = item.get("text", "")
+            cat  = item.get("category", "")
+            tags = item.get("legal_tags", [])
+            lines.append(f"**{cat}** · `{sec}`")
+            if txt:
+                preview = txt[:280] + ("..." if len(txt) > 280 else "")
+                lines.append(f"> {preview}")
+            if tags:
+                lines.append(" ".join(f"`{t}`" for t in tags[:4]))
+            lines.append("")
+
+    lines.append("---\nAsk me anything about specific clauses, disputes, risks, or obligations.")
     return "\n\n".join(lines)
 
 

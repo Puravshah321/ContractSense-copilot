@@ -442,31 +442,62 @@ class ContractSensePipeline:
     def get_all_risks(self):
         """
         Scan the entire document for risk clauses.
-        Called once after document load for the initial risk report.
+        Returns a severity-grouped, deduplicated dict:
+        {
+          "CRITICAL": [...],
+          "HIGH":     [...],
+          "MEDIUM":   [...],
+          "LOW":      [...],
+        }
+        Each item: {category, clause_id, section, page, text, legal_tags}
         """
         if not self.document_loaded:
             return None
 
         risk_queries = [
-            "What are the termination rights and risks?",
-            "What are the liability limitations and caps?",
-            "What are the indemnification obligations?",
-            "What are the confidentiality requirements?",
-            "What are the intellectual property ownership terms?",
-            "What are the payment terms and penalties?",
-            "What is the dispute resolution mechanism?",
-            "Are there any non-compete or restrictive covenants?",
-            "What are the warranty representations?",
-            "What are the data protection obligations?",
+            ("Termination Rights",   "What are the termination rights, cure periods, and immediate termination conditions?"),
+            ("Liability Cap",        "What are the liability limitations, caps, and damage exclusions?"),
+            ("Indemnification",      "What are the indemnification obligations and hold harmless provisions?"),
+            ("Confidentiality",      "What are the confidentiality and non-disclosure obligations?"),
+            ("IP Ownership",         "What are the intellectual property ownership and assignment terms?"),
+            ("Payment & Penalties",  "What are the payment terms, late fees, and financial penalties?"),
+            ("Dispute Resolution",   "What is the dispute resolution mechanism, arbitration, and governing law?"),
+            ("Data Protection",      "What are the data protection, security obligations, and breach notification requirements?"),
+            ("Subcontractor Liability", "What are the subcontractor attribution and third-party event clauses?"),
+            ("Survival Clauses",     "Which clauses and obligations survive termination?"),
         ]
 
-        results = []
-        for q in risk_queries:
-            result = self.query(q, top_k=3, force_rule=True)
-            if result.decision != "NOT_FOUND":
-                results.append(result)
+        seen_clauses = set()
+        risk_groups = {"CRITICAL": [], "HIGH": [], "MEDIUM": [], "LOW": []}
 
-        return results
+        for category, q in risk_queries:
+            try:
+                result = self.query(q, top_k=3, force_rule=True)
+            except Exception:
+                continue
+
+            if result.decision == "NOT_FOUND" or not result.evidence:
+                continue
+
+            level = result.risk_level if result.risk_level in risk_groups else "MEDIUM"
+
+            for ev in result.evidence:
+                # Deduplicate by clause identity
+                clause_key = (ev.get("clause_id", ""), ev.get("section", ""))
+                if clause_key in seen_clauses:
+                    continue
+                seen_clauses.add(clause_key)
+
+                risk_groups[level].append({
+                    "category":   category,
+                    "clause_id":  ev.get("clause_id", "?"),
+                    "section":    ev.get("section", "General"),
+                    "page":       ev.get("page", "?"),
+                    "text":       ev.get("text", "")[:350],
+                    "legal_tags": ev.get("legal_tags", []),
+                })
+
+        return risk_groups
 
 
 # ── Module-level helpers for the reasoning synthesis path ───────────
