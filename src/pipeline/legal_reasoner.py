@@ -173,6 +173,51 @@ def _compute_reasoning_depth(facts, conflicts, implications):
     return "shallow"
 
 
+def _match_pattern(text, pattern):
+    return re.search(pattern, text, re.I) is not None
+
+
+def _collect_clause_findings(retrieved_chunks):
+    findings = []
+    for item in retrieved_chunks:
+        chunk = item["chunk"]
+        text = chunk.text.strip()
+        lower = text.lower()
+
+        patterns = [
+            (r"\b(\d+)\s*(?:business\s+|calendar\s+)?days?\s+(?:written\s+)?notice\b", "Notice period"),
+            (r"\bopportunity\s+to\s+cure\b|\bcure\s+period\b|\bfail\w*\s+to\s+cure\b", "Cure period"),
+            (r"\bterminat\w*\s+immediately\b|\bimmediate\s+terminat\w*\b", "Immediate termination"),
+            (r"\boutstanding\s+invoices?\b.*\bdue\s+and\s+payable\b|\ball\s+outstanding\s+invoices?\s+become\s+immediately\s+due\b", "Outstanding invoices on termination"),
+            (r"\bsurviv\w*\b|\bfollowing\s+termination\b|\bafter\s+termination\b", "Survival"),
+            (r"\bdeemed\s+to\s+have\s+been\s+taken\s+by\b|\bresponsib\w+\s+for\s+the\s+acts?\s+of\b|\bacts?\s+undertaken\s+by\s+contractor", "Contractor attribution"),
+            (r"\bshall\s+not\s+exceed\b|\bmaximum\s+(?:aggregate\s+)?liability\b|\blimitation\s+of\s+liability\b", "Liability cap"),
+            (r"\bgross\s+negligence\b|\bwillful\s+misconduct\b|\bwilful\s+misconduct\b|\bfraud\b", "Heightened fault carve-out"),
+            (r"\bpersonal\s+data\b|\bdata\s+protection\b|\bsecurity\s+(?:obligations?|requirements?)\b|\bsecurity\s+incident\b", "Data protection/security"),
+            (r"\bconfidential(?:ity)?\b", "Confidentiality"),
+            (r"\bthird[\-\s]party\s+event\b|\bexcluded\s+event\b|\bbeyond\s+(?:the\s+)?reasonable\s+control\b", "Excluded third-party event"),
+        ]
+
+        for pattern, label in patterns:
+            if _match_pattern(lower, pattern):
+                findings.append(f"{label}: {text[:220]} [{chunk.clause_id}, {chunk.section}]")
+                break
+    return findings
+
+
+def _specific_ambiguities(retrieved_chunks):
+    text = "\n".join(item["chunk"].text.lower() for item in retrieved_chunks)
+    ambiguities = []
+    if _match_pattern(text, r"\bshall\s+not\s+exceed\b") and _match_pattern(text, r"\bconfidential(?:ity)?\b|\bpersonal\s+data\b|\bsecurity\b"):
+        if not _match_pattern(text, r"\bnotwithstanding\b|\bshall\s+not\s+apply\b|\bexcept\s+for\s+gross\s+negligence\b|\bcarve[\-\s]?out\b"):
+            ambiguities.append("The agreement combines liability-cap language with confidentiality/data-protection obligations, but no explicit cap override was found.")
+    if _match_pattern(text, r"\bcure\s+period\b|\bopportunity\s+to\s+cure\b") and _match_pattern(text, r"\bterminat\w*\s+immediately\b|\bimmediate\s+terminat\w*\b"):
+        ambiguities.append("The agreement appears to contain both cure-period language and immediate-termination language, so the interaction between them is unclear.")
+    if _match_pattern(text, r"\bdeemed\s+to\s+have\s+been\s+taken\s+by\b|\bresponsib\w+\s+for\s+the\s+acts?\s+of\b") and _match_pattern(text, r"\bthird[\-\s]party\s+event\b|\bexcluded\s+event\b"):
+        ambiguities.append("The agreement may both attribute contractor conduct to a party and separately refer to third-party or excluded events, creating attribution ambiguity.")
+    return ambiguities
+
+
 def reason_about_evidence(query, retrieved_chunks, facts, query_profile, evidence_check):
     """
     Core legal reasoning function.
@@ -199,6 +244,8 @@ def reason_about_evidence(query, retrieved_chunks, facts, query_profile, evidenc
             explicit_findings.append(
                 f"{f.fact_type.replace('_', ' ').title()}{val_str}: {f.text} [{f.clause_id}, {f.section}]"
             )
+    explicit_findings.extend(_collect_clause_findings(retrieved_chunks)[:8])
+    explicit_findings = list(dict.fromkeys(explicit_findings))
 
     # ── Implied interpretations (bounded inference) ─────────────────
     for condition_fn, implication_text in _IMPLICATION_RULES:
@@ -212,6 +259,8 @@ def reason_about_evidence(query, retrieved_chunks, facts, query_profile, evidenc
     # ── Conflicts, ambiguities, missing ────────────────────────────
     conflicts = _detect_conflicts(retrieved_chunks)
     ambiguities = _detect_ambiguities(facts, retrieved_chunks)
+    ambiguities.extend(_specific_ambiguities(retrieved_chunks))
+    ambiguities = list(dict.fromkeys(ambiguities))
     missing = _assess_missing(query_profile, retrieved_chunks)
 
     # ── Risk implications ───────────────────────────────────────────
@@ -223,9 +272,15 @@ def reason_about_evidence(query, retrieved_chunks, facts, query_profile, evidenc
             risk_implications.append(f"Financial penalty applies: {f.text[:120]}")
         elif f.fact_type == "prohibition":
             risk_implications.append(f"Prohibited action creates breach risk: {f.text[:100]}")
+        elif f.fact_type == "attribution":
+            risk_implications.append(f"Third-party or contractor conduct may be attributed under the agreement: {f.text[:100]}")
+        elif f.fact_type == "survival":
+            risk_implications.append(f"Post-termination obligations may continue: {f.text[:100]}")
+        elif f.fact_type == "security_obligation":
+            risk_implications.append(f"Security and personal-data obligations increase breach exposure: {f.text[:100]}")
 
     if conflicts:
-        risk_implications.append("Conflicting provisions create legal uncertainty — legal review required.")
+        risk_implications.append("Conflicting provisions create legal uncertainty - legal review required.")
     if ambiguities:
         risk_implications.append("Ambiguous terms may require negotiation or legal interpretation.")
     if missing and not explicit_findings:

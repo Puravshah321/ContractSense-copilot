@@ -80,6 +80,9 @@ def _strict_topic_match(query, chunk):
         (("liability", "damages", "cap"), ("liability", "liable", "damages", "cap", "limit", "limitation"), ["liability_cap", "gross_negligence", "indemnification"]),
         (("termination", "terminate"), ("termination", "terminate", "notice", "breach"), ["termination", "cure_period"]),
         (("subcontractor", "contractor", "third party negligence"), ("contractor", "subcontractor", "deemed", "attributable", "negligence"), ["subcontractor"]),
+        (("gross negligence", "willful misconduct", "wilful misconduct"), ("gross negligence", "willful misconduct", "wilful misconduct", "fraud", "except", "notwithstanding"), ["gross_negligence", "liability_cap"]),
+        (("survive", "survival", "after termination"), ("survive", "survival", "after termination", "following termination", "continue"), ["survival", "confidentiality", "data_protection"]),
+        (("invoice", "outstanding invoice", "unpaid invoice"), ("invoice", "outstanding", "due and payable", "fees", "payable"), ["payment", "termination"]),
     ]
     
     for triggers, required_terms, valid_tags in topic_groups:

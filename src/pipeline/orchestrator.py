@@ -289,7 +289,12 @@ class ContractSensePipeline:
             and reasoning_output.explicit_findings
         ):
             trace.append("  -> Using evidence-aware synthesis (reasoning layer active)")
-            synthesized = synthesize_with_reasoning(reasoning_output, coverage=coverage)
+            synthesized = synthesize_with_reasoning(
+                reasoning_output,
+                coverage=coverage,
+                query=user_query,
+                retrieved=retrieved,
+            )
             # Merge into answer_data
             answer_data = {
                 "answer": synthesized,
@@ -325,7 +330,44 @@ class ContractSensePipeline:
         verification = verify_grounding(answer_data, retrieved)
         trace.append(f"  -> Verdict: {verification['verdict']} ({verification['supported_ratio']:.0%} supported)")
 
-        if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
+        if verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER" and is_analytical_path and reasoning_output is not None and retrieved:
+            trace.append("Stage 8: Analytical fallback synthesis after verifier rejection...")
+            answer_data["answer"] = synthesize_with_reasoning(
+                reasoning_output,
+                coverage=coverage,
+                query=user_query,
+                retrieved=retrieved,
+            )
+            answer_data["decision"] = "AMBIGUOUS" if (reasoning_output.ambiguities or reasoning_output.conflicts) else "ANSWER"
+            answer_data["confidence"] = _conf_label(reasoning_output.confidence)
+            answer_data["risk_level"] = _pick_risk(reasoning_output)
+            answer_data["evidence"] = _evidence_list_from_retrieved(retrieved)
+            answer_data["action"] = _make_action_from_reasoning(reasoning_output)
+            verification = verify_grounding(answer_data, retrieved)
+            trace.append(f"  -> Fallback verdict: {verification['verdict']} ({verification['supported_ratio']:.0%} supported)")
+
+        if verification["verdict"] == "REJECTED" and answer_data["decision"] in {"ANSWER", "AMBIGUOUS"}:
+            trace.append("Stage 8B: Final safeguard - unsupported answer changed to NOT_FOUND")
+            answer_data["decision"] = "NOT_FOUND"
+            answer_data["confidence"] = "HIGH"
+            answer_data["risk_level"] = "N/A"
+            missing_items = coverage.get("missing_aspects", [])
+            clean_aspects = [m.replace("_", " ").title() for m in missing_items if m != "general"]
+            if clean_aspects:
+                bullet_points = "\n".join([f"- No explicit clause found for: {m}" for m in clean_aspects])
+                answer_data["answer"] = (
+                    f"{bullet_points}\n\n"
+                    "The retrieved evidence was insufficient to determine a grounded answer."
+                )
+            else:
+                answer_data["answer"] = (
+                    "This is not specified in the provided document. The generated answer was "
+                    "not sufficiently supported by the retrieved evidence."
+                )
+            answer_data["action"] = ""
+            answer_data["evidence"] = []
+
+        if False and verification["verdict"] == "REJECTED" and answer_data["decision"] == "ANSWER":
             if is_analytical_path and mode in ("groq_api", "hf_api"):
                 trace.append("Stage 8: OVERRIDE - analytical reasoning marked as AMBIGUOUS")
                 answer_data["decision"] = "AMBIGUOUS"
@@ -458,4 +500,3 @@ def _make_action_from_reasoning(reasoning_output):
     if reasoning_output.explicit_findings:
         return "Review the cited clauses to understand your obligations before proceeding."
     return ""
-

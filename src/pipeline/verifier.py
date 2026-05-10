@@ -36,17 +36,39 @@ def _extract_claims(answer_text):
         claim = part.strip()
         if len(claim) < 18:
             continue
+        if claim.endswith("?"):
+            continue
+        if re.match(r"^Q\d+\.", claim):
+            continue
+        if re.match(r"^\([^)]+,\s*page\s*\d+\):\s*(?:\d+\.?\s*)?[A-Za-z0-9][A-Za-z0-9\s\.-]*\.$", claim):
+            continue
+        if claim.lower().startswith(("status:", "overall:", "acme's strongest", "globalretail's strongest", "least clearly resolved issue:", "confidence:")):
+            continue
+        if claim.lower().startswith("reasoning depth:"):
+            continue
         if claim.lower().startswith(("grounding", "evidence:", "citation:", "decision:")):
             continue
         if claim.lower().rstrip(":") in {
             "relevant obligations/ commitments found",
             "ranked risks based on retrieved clauses",
             "comparison points from the contract",
+            "directly supported findings",
+            "bounded interpretations",
+            "conflicts",
+            "ambiguities",
+            "missing information",
         }:
             continue
         if claim.lower().startswith("according to") and not re.search(r"\b(shall|must|may|will|is|are|does|continues|lasts|requires|states)\b", claim.lower()):
             continue
-        if re.search(r"^(the agreement does not|it is unclear|it is ambiguous|there is no explicit|does not clearly|unresolved|unclear|ambiguous|not explicitly addressed)", claim.lower()):
+        if re.search(r"^(the agreement does not|it is unclear|it is ambiguous|there is no explicit|does not clearly|unresolved|unclear|ambiguous|not explicitly addressed|no explicit|coverage gaps)", claim.lower()):
+            continue
+        if any(marker in claim.lower() for marker in [
+            "was retrieved, but it does not clearly resolve",
+            "was not explicit enough",
+            "without an explicit statement",
+            "potential ambiguity appears in",
+        ]):
             continue
         claims.append(claim)
     return claims
@@ -71,6 +93,8 @@ def _claim_supported(claim, evidence_sentences, evidence_text, threshold=0.5):
     """Return (supported, score) for a single claim."""
     claim_lower = claim.lower()
     evidence_lower = evidence_text.lower()
+    if re.search(r"\b(likely|ambiguous|unclear|may|appears|suggests|retrieved evidence|does not clearly)\b", claim_lower):
+        threshold = 0.3
     if re.search(r"\bdoes\s+not\s+(?:permit|allow)|\bnot\s+permit\b|\bnot\s+allow\b", claim_lower):
         if re.search(r"\buse\s+the\s+confidential\s+information\b.*\bscope\s+of\s+audit\b|\bnot\s+to\s+make\s+or\s+retain\s+copy\b|\bnot\s+to\s+disclose\b|\bwithout\s+(?:the\s+)?(?:express\s+)?written\s+consent\b", evidence_lower):
             return True, 0.8

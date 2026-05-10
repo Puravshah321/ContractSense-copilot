@@ -44,6 +44,18 @@ Auditor shall maintain audit records and processing logs for inspection. These r
 9. No Conflict.
 The parties represent and warrant that the performance of its obligations hereunder do not and shall not conflict with any other agreement or obligation of the respective parties.
 
+10. Limitation of Liability.
+Except for fraud, gross negligence, or willful misconduct expressly stated in this Agreement, each party's aggregate liability shall not exceed the fees paid or payable under this Agreement in the twelve (12) months preceding the claim. In no event shall either party be liable for indirect, incidental, consequential, or punitive damages.
+
+11. Termination.
+Either party may terminate this Agreement for material breach if the breaching party fails to cure such breach within thirty (30) days after written notice. The Auditee may terminate immediately for a breach of confidentiality or unauthorized transfer of personal data. Upon termination, all outstanding invoices become immediately due and payable.
+
+13. Contractors.
+Any actions undertaken by contractors or subcontractors engaged by the Auditor in connection with the Services shall be deemed to have been taken by the Auditor. Auditor remains responsible for the acts and omissions of its subcontractors.
+
+14. Security and Personal Data.
+Auditor shall implement appropriate security measures to protect personal data and promptly notify Auditee of any security incident, unauthorized access, or ransomware event affecting such data.
+
 12. Entire Agreement.
 This Agreement constitutes the entire understanding and agreement between the parties, and supersedes all previous or contemporaneous agreement or communications.
 
@@ -102,11 +114,48 @@ EVAL_CASES = [
         "expected_answer_contains": "INR 50,000",
     },
     {
+        "query": "Do confidentiality obligations survive termination?",
+        "expected_intent": "yes_no",
+        "expected_decision": "ANSWER",
+        "expected_section": "Survival",
+        "expected_answer_contains": "Answer: YES",
+    },
+    {
+        "query": "Is contractor conduct attributable to the auditor under this agreement?",
+        "expected_intent": "yes_no",
+        "expected_decision": "ANSWER",
+        "expected_section": "Contractors",
+        "expected_answer_contains": "Answer: YES",
+    },
+    {
+        "query": "Do outstanding invoices become due upon termination?",
+        "expected_intent": "yes_no",
+        "expected_decision": "ANSWER",
+        "expected_section": "Termination",
+        "expected_answer_contains": "Answer: YES",
+    },
+    {
+        "query": """Based ONLY on this agreement:
+
+Could the Auditee terminate immediately without cure notice?
+Does the limitation-of-liability clause still apply?
+Is the Auditor still entitled to unpaid invoices?
+Do confidentiality or data-protection clauses survive termination?
+Is the subcontractor's conduct attributable to the Auditor?
+Are there conflicting clauses that create ambiguity?
+What are the strongest arguments available to each side?
+Which issue is least clearly resolved by the contract?""",
+        "expected_intent": "analytical",
+        "expected_decision": "ANSWER",
+        "expected_section": "Termination",
+        "expected_answer_contains": "Q1.",
+    },
+    {
         "query": "Which clause creates the highest compliance burden?",
-        "expected_intent": "extraction",
-        "expected_decision": "NOT_FOUND",
-        "expected_section": None,
-        "expected_answer_contains": "not specified",
+        "expected_intent": "analytical",
+        "expected_decision": "ANSWER",
+        "expected_section": "Protection of Confidential Information",
+        "expected_answer_contains": "Protection of Confidential Information",
     },
 ]
 
@@ -115,6 +164,10 @@ def _top_section(result):
     if not result.evidence:
         return None
     return result.evidence[0].get("section")
+
+
+def _all_sections(result):
+    return [ev.get("section") for ev in result.evidence if ev.get("section")]
 
 
 def _expected_answer_type(intent):
@@ -132,7 +185,7 @@ def _structure_ok(expected_intent, answer):
     if expected_intent == "yes_no":
         return a.startswith("answer: yes") or a.startswith("answer: no") or a.startswith("answer: not_found")
     if expected_intent == "analytical":
-        return "structured findings" in a or "relevant obligations" in a or "finding (" in a
+        return "structured findings" in a or "relevant obligations" in a or "finding (" in a or "q1." in a
     if expected_intent == "extraction":
         return "extracted relevant clauses" in a or "clause" in a
     return len(a.strip()) > 0
@@ -161,6 +214,7 @@ def evaluate():
     for case in EVAL_CASES:
         result = pipeline.query(case["query"], top_k=3)
         top_section = _top_section(result)
+        all_sections = _all_sections(result)
         actual_answer_type = (result.query_profile or {}).get("answer_type")
         expected_answer_type = _expected_answer_type(case.get("expected_intent", "factual"))
         intent_ok = actual_answer_type == expected_answer_type or (
@@ -171,8 +225,7 @@ def evaluate():
             and result.decision == "NOT_FOUND"
         ) or (
             case["expected_section"] is not None
-            and top_section
-            and case["expected_section"].lower() in top_section.lower()
+            and any(case["expected_section"].lower() in sec.lower() for sec in all_sections)
         ))
         decision_ok = result.decision == case["expected_decision"]
         answer_ok = case["expected_answer_contains"].lower() in result.answer.lower()

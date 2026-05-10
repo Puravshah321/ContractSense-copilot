@@ -32,7 +32,13 @@ _QUERY_EXPANSIONS = {
     "term": ["duration", "term", "valid", "validity", "period", "effective", "commencement", "expiration", "expires", "signing"],
     "long": ["duration", "term", "period", "year", "month", "day"],
     "liability": ["liability", "liable", "cap", "limit", "limitation", "damages", "indemnity", "indemnification"],
+    "gross": ["gross negligence", "willful misconduct", "wilful misconduct", "fraud", "carve-out", "except", "notwithstanding"],
+    "negligence": ["negligence", "gross negligence", "negligent", "misconduct", "fault"],
+    "subcontractor": ["subcontractor", "contractor", "deemed", "attributable", "acts undertaken", "third-party event", "responsible for acts"],
+    "contractor": ["contractor", "subcontractor", "deemed", "attributable", "acts undertaken", "responsible for acts"],
     "data": ["data", "information", "confidential", "audit", "personal", "processor", "controller", "breach", "transfer", "share", "disclose", "outside", "cross-border", "use"],
+    "personal": ["personal data", "privacy", "data protection", "controller", "processor", "security", "breach"],
+    "security": ["security", "security incident", "security obligations", "security requirements", "breach", "ransomware", "cyber"],
     "india": ["india", "outside", "cross-border", "transfer", "data", "personal"],
     "shared": ["share", "shared", "disclose", "disclosure", "transfer", "third-party", "third party"],
     "share": ["share", "shared", "disclose", "disclosure", "transfer", "third-party", "third party"],
@@ -46,7 +52,13 @@ _QUERY_EXPANSIONS = {
     "penalty": ["penalty", "penalties", "damages", "liquidated", "loss", "compensate", "contract value", "breach", "remedies"],
     "termination": ["termination", "terminate", "expires", "notice", "breach", "term",
                      "cure", "cure period", "opportunity to cure", "right to cure"],
+    "cure": ["cure", "cure period", "opportunity to cure", "notice of breach", "30 days", "thirty days"],
+    "survive": ["survive", "survival", "continue after termination", "following termination", "post-termination"],
+    "financial": ["financial", "payment", "fee", "fees", "invoice", "commission", "amount due", "payable", "commercial obligation"],
+    "commitment": ["financial commitment", "payment", "fee", "invoice", "commission", "amount due", "payable"],
     "payment": ["payment", "pay", "invoice", "fees", "late", "interest", "payable", "due"],
+    "invoice": ["invoice", "invoices", "fees", "due", "due and payable", "outstanding invoices", "final invoice"],
+    "override": ["override", "except", "except for", "notwithstanding", "carve-out", "shall not apply"],
     "indemnification": ["indemnification", "indemnify", "indemnity", "hold harmless", "third-party", "claim"],
 }
 
@@ -56,14 +68,24 @@ _SECTION_PRIORITIES = {
     "duration": ["term", "duration", "commencement", "expiration", "valid"],
     "term": ["term", "duration", "commencement", "expiration", "valid"],
     "liability": ["limitation of liability", "liability", "indemnification"],
+    "gross": ["limitation of liability", "liability", "indemnification", "security", "confidentiality"],
+    "subcontractor": ["subcontractor", "contractor", "liability", "indemnification", "force majeure"],
+    "contractor": ["subcontractor", "contractor", "liability", "indemnification", "force majeure"],
     "data": ["data protection", "privacy", "security", "confidentiality", "protection of confidential information", "permitted disclosure", "need to know"],
+    "security": ["security", "data protection", "privacy", "confidentiality"],
+    "personal": ["data protection", "privacy", "security", "confidentiality"],
     "india": ["data protection", "privacy", "security", "confidentiality"],
     "termination": ["termination", "term"],
+    "cure": ["termination", "notice", "breach"],
+    "survive": ["survival", "termination", "confidentiality", "data protection"],
+    "financial": ["financial commitments", "payment", "fees", "invoice"],
+    "commitment": ["financial commitments", "payment", "fees", "invoice"],
     "share": ["permitted disclosure", "need to know", "confidentiality", "protection of confidential information"],
     "shared": ["permitted disclosure", "need to know", "confidentiality", "protection of confidential information"],
     "training": ["protection of confidential information", "confidentiality", "definitions"],
     "ai": ["protection of confidential information", "confidentiality", "definitions"],
     "penalty": ["remedies", "liability"],
+    "invoice": ["payment", "termination", "financial commitments"],
 }
 
 _GENERIC_SECTION_TERMS = {
@@ -247,6 +269,14 @@ class HybridRetriever:
                 section_bonus += 0.45
             if "penalty" in q_lower and re.search(r"\bliquidated\s+damages\b|\bcontract\s+value\b|\bloss\s+or\s+damages\b", chunk_text):
                 section_bonus += 0.55
+            if any(_trigger_present(t, q_lower) for t in ["subcontractor", "contractor", "negligence"]) and re.search(r"\bsubcontract\w*\b|\bcontractor\w*\b|\bdeemed\b|\battribut\w+\b|\bacts?\s+undertaken\b|\bresponsib\w+\s+for\s+the\s+acts?\b", chunk_text):
+                section_bonus += 0.6
+            if any(_trigger_present(t, q_lower) for t in ["gross", "negligence", "override"]) and re.search(r"\bgross\s+negligence\b|\bwillful\s+misconduct\b|\bwilful\s+misconduct\b|\bfraud\b|\bnotwithstanding\b|\bexcept\b", chunk_text):
+                section_bonus += 0.45
+            if any(_trigger_present(t, q_lower) for t in ["invoice", "payment"]) and re.search(r"\binvoice\w*\b|\boutstanding\b|\bdue\s+and\s+payable\b|\bfees?\b|\bpayable\b", chunk_text):
+                section_bonus += 0.45
+            if any(_trigger_present(t, q_lower) for t in ["survive", "survival"]) and re.search(r"\bsurviv\w*\b|\bfollowing\s+termination\b|\bafter\s+termination\b", chunk_text):
+                section_bonus += 0.45
 
             final_score = float(base_score) + (0.55 * keyword_score) + section_bonus + tag_boost - penalty
             reranked.append((idx, final_score, keyword_score, section_bonus, penalty))

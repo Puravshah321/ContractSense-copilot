@@ -14,8 +14,11 @@ _ASPECT_PATTERNS = {
     "confidentiality": [r"\bconfidential\b", r"\bdisclos(?:e|ure)\b", r"\bneed\s+to\s+know\b"],
     "data_use": [r"\bdata\b", r"\bprocessing\b", r"\bstorage\b", r"\boutside\s+india\b", r"\boutside\s+the\s+country\b"],
     "sharing": [r"\bshare\b", r"\bthird\s*-?party\b", r"\bdisclos(?:e|ure)\b", r"\bwithout\s+.*written\s+(?:consent|approval)\b"],
+    "termination": [r"\bterminat\w*\b", r"\bnotice\b", r"\bcure\b", r"\bbreach\b"],
     "term": [r"\bterm\b", r"\bvalid\b", r"\bexpir(?:y|ation|es)\b", r"\beffective\s+date\b"],
     "survival": [r"\bsurviv(?:e|al)\b", r"\bafter\s+(?:termination|expiration)\b"],
+    "subcontractor": [r"\bsubcontract\w*\b", r"\bcontractor\w*\b", r"\bdeemed\b", r"\battribut\w+\b", r"\bresponsib\w+\s+for\s+the\s+acts?\b"],
+    "gross_negligence": [r"\bgross\s+negligence\b", r"\bwillful\s+misconduct\b", r"\bwilful\s+misconduct\b", r"\bfraud\b"],
     "restriction": [r"\bshall\s+not\b", r"\bmust\s+not\b", r"\bwithout\s+.*written\s+(?:consent|approval)\b", r"\bnot\s+to\b"],
     "risk": [r"\brisk\b", r"\bliabilit", r"\btermination\b", r"\bindemnif", r"\bpenalt(?:y|ies)\b"],
 }
@@ -36,6 +39,12 @@ def _aspect_present(aspect, text, taxonomy_labels):
     if aspect == "term" and "Term/Duration" in taxonomy_labels:
         return True
     if aspect == "survival" and "Survival" in taxonomy_labels:
+        return True
+    if aspect == "termination" and "Termination" in taxonomy_labels:
+        return True
+    if aspect == "subcontractor" and ("Indemnification" in taxonomy_labels or "Liability/Remedies" in taxonomy_labels):
+        return True
+    if aspect == "gross_negligence" and "Liability/Remedies" in taxonomy_labels:
         return True
     return False
 

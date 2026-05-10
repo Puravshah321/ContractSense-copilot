@@ -22,6 +22,11 @@ _CONCEPT_TEMPLATES = {
         "What types of damages are excluded from liability?",
         "Are there indemnification obligations related to this?",
     ],
+    "gross_negligence": [
+        "Does the agreement mention gross negligence, willful misconduct, or fraud?",
+        "Is gross negligence carved out from any limitation of liability clause?",
+        "Do heightened fault standards change the available remedies or caps?",
+    ],
     "termination": [
         "What are the grounds and notice requirements for termination?",
         "What obligations survive after termination?",
@@ -32,6 +37,7 @@ _CONCEPT_TEMPLATES = {
         "What are the direct payment obligations and amounts?",
         "What are the penalties or liquidated damages for breach?",
         "What are the liability caps on financial exposure?",
+        "Do outstanding invoices remain due after termination?",
     ],
     "confidentiality": [
         "What information is classified as confidential?",
@@ -43,6 +49,11 @@ _CONCEPT_TEMPLATES = {
         "What are the permitted uses of the data under this agreement?",
         "Are there restrictions on storing or transferring data outside of jurisdiction?",
         "What security or data protection obligations apply?",
+    ],
+    "subcontractor": [
+        "Are subcontractors or contractors treated as acting on behalf of the contracting party?",
+        "Does the agreement attribute acts or negligence of contractors to a party?",
+        "Is a third-party event or contractor action treated as an excluded event?",
     ],
     "ip": [
         "Who owns the intellectual property created under this agreement?",
@@ -85,6 +96,12 @@ _MULTI_HOP_TEMPLATES = [
     ("termination", "liability",
      ["What is the liability of each party after termination?",
       "Does the limitation of liability clause apply post-termination?"]),
+    ("subcontractor", "liability",
+     ["Is subcontractor negligence attributable to the contracting party?",
+      "Does the liability cap still apply if the loss was caused by a contractor or subcontractor?"]),
+    ("confidentiality", "liability",
+     ["Do confidentiality or data-protection obligations override the liability cap?",
+      "Does a confidentiality or privacy breach change the damages analysis?"]),
     ("ip", "termination",
      ["What happens to IP rights if the contract is terminated?",
       "Can the licensee continue using IP after termination?"]),
