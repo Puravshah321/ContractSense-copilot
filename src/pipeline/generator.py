@@ -328,29 +328,53 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
     if not sub_questions:
         sub_questions = [query]
 
-    # ── Pass 2: Combined cautious legal reasoning ──────────────────────────
-    sys_prompt = (
-        "You are ContractSense, an advanced legal reasoning AI with strict grounding discipline.\n"
-        "You are given EVIDENCE clauses retrieved from a contract, and a list of atomic sub-questions to analyze.\n\n"
-        "RULES:\n"
-        "1. DO NOT fabricate legal rules. Only reason from the provided evidence.\n"
-        "2. For EACH sub-question, perform a structured analysis:\n"
-        "   - 'explicit': Direct statements from the evidence (cite Evidence X).\n"
-        "   - 'implied': Reasonable legal implications or suggestions derived from evidence.\n"
-        "   - 'unresolved': Gaps, ambiguities, or missing information.\n"
-        "3. Use language like: 'implies', 'suggests', 'does not clearly define', 'ambiguous whether'.\n"
-        "4. Never say 'Yes' or 'No' unless a clause explicitly resolves it.\n"
-        "5. Return a JSON array of objects, one per sub-question, matching this schema:\n"
-        "   [{\"q\": \"...\", \"explicit\": \"...\", \"implied\": \"...\", \"unresolved\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}]"
-    )
 
-    findings = []
+    # ── Pass 2: Legal Dispute Analysis Report ─────────────────────────────
+    sys_prompt = """You are ContractSense, a professional legal AI specializing in contract dispute analysis.
+You produce structured DISPUTE ANALYSIS REPORTS grounded strictly in retrieved contract clauses.
+
+STATUS CLASSIFICATION (use exactly one per issue):
+- EXPLICITLY_SUPPORTED: A direct clause clearly resolves this issue.
+- PARTIALLY_SUPPORTED: Related clauses exist but do not fully resolve the issue.
+- AMBIGUOUS: Clauses exist but create conflicting or unclear obligations.
+- NOT_FOUND: No relevant clause was retrieved for this issue.
+- OUTSIDE_AGREEMENT: The issue involves facts external to the contract's scope.
+
+STRICT RULES:
+1. NEVER fabricate clauses. Only reference the provided EVIDENCE.
+2. Use OUTSIDE_AGREEMENT when the contract simply cannot answer the question (e.g., real-world events not addressed).
+3. Cite specific Evidence numbers (Evidence 1, Evidence 2...) when referencing clauses.
+4. Be intellectually honest — if evidence is weak, say so.
+5. Return a JSON object with this exact structure:
+{
+  "report_title": "DISPUTE ANALYSIS REPORT",
+  "document_status": "Grounded|Partially Grounded|Outside Agreement Scope",
+  "overall_risk": "CRITICAL|HIGH|MEDIUM|LOW",
+  "issues": [
+    {
+      "title": "Short descriptive title of the legal issue",
+      "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|AMBIGUOUS|NOT_FOUND|OUTSIDE_AGREEMENT",
+      "relevant_clauses": ["Evidence X — what it says", "No direct clause found"],
+      "analysis": "2-3 sentences of grounded legal reasoning.",
+      "conclusion": "One definitive sentence about what this contract says (or doesn't say) on this issue."
+    }
+  ],
+  "strongest_for_claimant": ["bullet 1", "bullet 2"],
+  "strongest_for_respondent": ["bullet 1", "bullet 2"],
+  "least_resolved_issue": "Which issue is least clearly resolved and why.",
+  "system_note": "Note any questions that fall outside the contract scope."
+}"""
+
+    findings = {}
     any_critical = False
     any_high = False
-    any_resolved = False
 
     try:
-        user_msg = f"EVIDENCE:\n{evidence_text}\n\nSUB-QUESTIONS:\n" + "\n".join(sub_questions[:8]) + "\n\nReturn JSON ONLY."
+        user_msg = (
+            f"EVIDENCE FROM CONTRACT:\n{evidence_text}\n\n"
+            f"LEGAL ISSUES TO ANALYZE:\n" + "\n".join(f"{i+1}. {q}" for i, q in enumerate(sub_questions[:8])) +
+            "\n\nReturn the JSON report ONLY. No extra text."
+        )
         r = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers=headers,
@@ -363,103 +387,125 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
                 "response_format": {"type": "json_object"},
                 "temperature": 0.1
             },
-            timeout=30
+            timeout=35
         )
         if r.status_code == 200:
-            resp_json = r.json()
-            content = resp_json["choices"][0]["message"]["content"]
-            # Extract list from potential JSON object wrapper
-            data = json.loads(content)
-            if isinstance(data, dict):
-                # Look for a list value in the dict (Groq json_object often wraps the array)
-                for val in data.values():
-                    if isinstance(val, list):
-                        findings = val
-                        break
-                else:
-                    findings = []
-            elif isinstance(data, list):
-                findings = data
-            
-            for f in findings:
-                if f.get("resolved"): any_resolved = True
-                risk = f.get("risk_contribution", "MEDIUM")
-                if risk == "CRITICAL": any_critical = True
-                elif risk == "HIGH": any_high = True
+            content = r.json()["choices"][0]["message"]["content"]
+            findings = json.loads(content)
         else:
-            print(f"Groq API Synthesis Error: {r.status_code} - {r.text}")
+            print(f"Groq Synthesis Error: {r.status_code} - {r.text}")
     except Exception as e:
-        print(f"Synthesis Exception: {e}")
+        print(f"Groq Synthesis Exception: {e}")
 
-    # ── Assemble final answer ──────────────────────────────────────────────
-    if not findings:
+    if not findings or "issues" not in findings:
         return {
-            "answer": "The system could not decompose or analyze this query against the retrieved evidence.",
+            "answer": "The system could not generate a structured analysis. Please try again.",
             "risk_level": "N/A", "evidence": [], "confidence": "LOW",
             "decision": "NOT_FOUND", "action": ""
         }
 
-    answer_lines = []
-    unresolved_count = 0
-    for f in findings:
-        resolved_tag = "✓ Resolved" if f["resolved"] else "⚠ Unresolved/Ambiguous"
-        
-        q_text = f"**{f['q']}**\n{resolved_tag}"
-        
-        explicit = f.get("explicit", "").strip()
-        if explicit and explicit.lower() not in {"n/a", "none", "no explicit statements found"}:
-            q_text += f"\n- **Explicit Findings:** {explicit}"
-            
-        implied = f.get("implied", "").strip()
-        if implied and implied.lower() not in {"n/a", "none", "no implied interpretations"}:
-            q_text += f"\n- **Implied Interpretation:** {implied}"
-            
-        unresolved = f.get("unresolved", "").strip()
-        if unresolved and unresolved.lower() not in {"n/a", "none"}:
-            q_text += f"\n- **Unresolved Gaps:** {unresolved}"
-            
-        answer_lines.append(q_text)
-        if not f["resolved"]:
-            unresolved_count += 1
+    return _render_legal_memo(findings, evidence_chunks)
 
-    full_answer = "\n\n".join(answer_lines)
 
-    if unresolved_count > 0:
-        full_answer += (
-            f"\n\n---\n**Summary:** {unresolved_count} of {len(findings)} issue(s) are not explicitly resolved by this agreement. "
-            "The analysis above identifies the most relevant clauses and their implied scope, "
-            "but definitive conclusions on unresolved points require legal counsel."
-        )
 
-    decision = "ANSWER" if any_resolved else "AMBIGUOUS"
-    risk_level = "CRITICAL" if any_critical else ("HIGH" if any_high else "MEDIUM")
-    confidence = "MEDIUM" if any_resolved else "LOW"
+
+def _render_legal_memo(findings: dict, evidence_chunks: list) -> dict:
+    """
+    Shared renderer: converts a structured findings dict (from Groq/Gemini)
+    into a formatted Legal Dispute Analysis Report + calibrated metadata.
+    """
+    STATUS_EMOJI = {
+        "EXPLICITLY_SUPPORTED": "🟢",
+        "PARTIALLY_SUPPORTED":  "🟡",
+        "AMBIGUOUS":            "🔴",
+        "NOT_FOUND":            "⚫",
+        "OUTSIDE_AGREEMENT":    "🔵",
+    }
+
+    issues      = findings.get("issues", [])
+    overall_risk = findings.get("overall_risk", "MEDIUM")
+    doc_status   = findings.get("document_status", "Partially Grounded")
+
+    lines = []
+    lines.append("## 📋 DISPUTE ANALYSIS REPORT")
+    lines.append(f"**Document Status:** {doc_status} &nbsp;|&nbsp; **Overall Risk:** `{overall_risk}`")
+    lines.append("---")
+
+    for i, issue in enumerate(issues, 1):
+        status = issue.get("status", "AMBIGUOUS")
+        emoji  = STATUS_EMOJI.get(status, "🔴")
+        lines.append(f"### ISSUE {i} — {issue.get('title', 'Unnamed Issue')}")
+        lines.append(f"**Status:** {emoji} `{status}`")
+
+        clauses = issue.get("relevant_clauses", [])
+        if clauses:
+            lines.append("**Relevant Clauses:**")
+            for cl in clauses:
+                lines.append(f"- {cl}")
+
+        if issue.get("analysis"):
+            lines.append(f"\n**Analysis:** {issue['analysis']}")
+        if issue.get("conclusion"):
+            lines.append(f"\n**Conclusion:** _{issue['conclusion']}_")
+
+        lines.append("---")
+
+    lines.append("### 📊 OVERALL OBSERVATIONS")
+    for b in findings.get("strongest_for_claimant", []):
+        lines.append(f"- {b}")
+    respondent = findings.get("strongest_for_respondent", [])
+    if respondent:
+        lines.append("\n**Strongest Arguments (Respondent):**")
+        for b in respondent:
+            lines.append(f"- {b}")
+    if findings.get("least_resolved_issue"):
+        lines.append(f"\n**Least Resolved Issue:** {findings['least_resolved_issue']}")
+    if findings.get("system_note"):
+        lines.append(f"\n> 💡 **System Note:** {findings['system_note']}")
+
+    full_answer = "\n\n".join(lines)
+
+    # ── Calibrated confidence ──────────────────────────────────────────────
+    statuses        = [iss.get("status", "") for iss in issues]
+    explicit_count  = sum(1 for s in statuses if s == "EXPLICITLY_SUPPORTED")
+    partial_count   = sum(1 for s in statuses if s == "PARTIALLY_SUPPORTED")
+    outside_count   = sum(1 for s in statuses if s == "OUTSIDE_AGREEMENT")
+
+    if explicit_count >= max(len(issues) // 2, 1):
+        confidence, decision = "HIGH",   "ANSWER"
+    elif explicit_count + partial_count > 0:
+        confidence, decision = "MEDIUM", "AMBIGUOUS"
+    elif outside_count == len(issues):
+        confidence, decision = "LOW",    "NOT_FOUND"
+    else:
+        confidence, decision = "LOW",    "AMBIGUOUS"
 
     evidence_list = []
-    for r in evidence_chunks[:3]:
+    for r in evidence_chunks[:5]:
         c = r["chunk"]
         evidence_list.append({
-            "clause_id": c.clause_id,
-            "section": c.section,
-            "page": c.page,
-            "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
+            "clause_id":  c.clause_id,
+            "section":    c.section,
+            "page":       c.page,
+            "text":       c.text[:300] + ("..." if len(c.text) > 300 else ""),
+            "legal_tags": r.get("legal_tags", []),
         })
 
     return {
-        "answer": full_answer,
-        "risk_level": risk_level,
-        "evidence": evidence_list,
+        "answer":     full_answer,
+        "risk_level": overall_risk,
+        "evidence":   evidence_list,
         "confidence": confidence,
-        "decision": decision,
-        "action": _make_evidence_action(evidence_list) if decision == "ANSWER" else "",
+        "decision":   decision,
+        "action":     "",
     }
 
 
-
 def _generate_gemini_api_answer(query, evidence_chunks, evidence_check):
+
     """
-    Calls the Google Gemini API (Gemini 1.5 Flash).
-    Two-pass structure: 1. Decompose 2. Synthesize.
+    Calls Google Gemini (1.5 Flash) with the same Legal Dispute Analysis Report
+    format as the Groq generator for output consistency.
     """
     import os
     import json
@@ -480,8 +526,8 @@ def _generate_gemini_api_answer(query, evidence_chunks, evidence_check):
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        # ── Build evidence context ──────────────────────────────────────────────
+
+        # ── Build evidence context ─────────────────────────────────────────
         context_parts = []
         for i, r in enumerate(evidence_chunks[:5]):
             c = r["chunk"]
@@ -490,94 +536,77 @@ def _generate_gemini_api_answer(query, evidence_chunks, evidence_check):
             )
         evidence_text = "\n\n".join(context_parts) if context_parts else "No evidence retrieved."
 
-        # ── Pass 1: Decompose ──────────────────────────────────────────────────
+        # ── Pass 1: Decompose ──────────────────────────────────────────────
         is_compound = "\n" in query.strip() or len(query) > 300
-        sub_questions = []
+        sub_questions = [query]
         if is_compound:
-            decomp_prompt = (
-                "Split this multi-part legal question into a JSON list of independent atomic sub-questions. "
-                "Return ONLY a JSON array of strings. Example: [\"Q1\", \"Q2\"]"
-            )
-            response = model.generate_content(f"{decomp_prompt}\n\nQUERY:\n{query}")
             try:
-                raw = response.text.strip()
-                if "```json" in raw:
-                    raw = raw.split("```json")[1].split("```")[0].strip()
-                elif "[" in raw:
-                    raw = raw[raw.find("["):raw.rfind("]")+1]
+                resp = model.generate_content(
+                    "Split this multi-part legal question into a JSON list of independent atomic sub-questions. "
+                    "Return ONLY a JSON array of strings.\n\nQUERY:\n" + query
+                )
+                raw = resp.text.strip()
+                raw = raw[raw.find("["):raw.rfind("]")+1]
                 sub_questions = json.loads(raw)
-            except: sub_questions = [query]
-        else:
-            sub_questions = [query]
+            except Exception:
+                sub_questions = [query]
 
-        # ── Pass 2: Synthesize ─────────────────────────────────────────────────
-        sys_prompt = (
-            "You are ContractSense, a legal AI. Analyze these sub-questions against the EVIDENCE.\n"
-            "RULES:\n"
-            "1. NO fabrication. 2. Use 'explicit', 'implied', 'unresolved' categories.\n"
-            "3. Use cautious language ('suggests', 'ambiguous'). 4. Cite Evidence X.\n"
-            "Return JSON array: [{\"q\": \"...\", \"explicit\": \"...\", \"implied\": \"...\", \"unresolved\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}]"
+        # ── Pass 2: Legal Dispute Analysis Report ─────────────────────────
+        sys_prompt = """You are ContractSense, a professional legal AI. Produce a DISPUTE ANALYSIS REPORT.
+
+STATUS CLASSIFICATION (use exactly one per issue):
+- EXPLICITLY_SUPPORTED: A direct clause clearly resolves this issue.
+- PARTIALLY_SUPPORTED: Related clauses exist but do not fully resolve it.
+- AMBIGUOUS: Clauses exist but create conflicting or unclear obligations.
+- NOT_FOUND: No relevant clause was retrieved for this issue.
+- OUTSIDE_AGREEMENT: The issue involves facts external to the contract scope.
+
+RULES: Never fabricate clauses. Only reference the provided EVIDENCE. Cite Evidence numbers.
+
+Return ONLY a valid JSON object matching:
+{
+  "report_title": "DISPUTE ANALYSIS REPORT",
+  "document_status": "Grounded|Partially Grounded|Outside Agreement Scope",
+  "overall_risk": "CRITICAL|HIGH|MEDIUM|LOW",
+  "issues": [
+    {
+      "title": "Short issue title",
+      "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|AMBIGUOUS|NOT_FOUND|OUTSIDE_AGREEMENT",
+      "relevant_clauses": ["Evidence X — description"],
+      "analysis": "2-3 sentence grounded analysis.",
+      "conclusion": "One definitive sentence."
+    }
+  ],
+  "strongest_for_claimant": ["point 1"],
+  "strongest_for_respondent": ["point 1"],
+  "least_resolved_issue": "Which issue and why.",
+  "system_note": "Note anything outside the contract scope."
+}"""
+
+        user_msg = (
+            f"EVIDENCE FROM CONTRACT:\n{evidence_text}\n\n"
+            "LEGAL ISSUES TO ANALYZE:\n" +
+            "\n".join(f"{i+1}. {q}" for i, q in enumerate(sub_questions[:8])) +
+            "\n\nReturn the JSON report ONLY."
         )
-        
-        user_msg = f"EVIDENCE:\n{evidence_text}\n\nSUB-QUESTIONS:\n" + "\n".join(sub_questions[:8]) + "\n\nReturn JSON ONLY."
+
         response = model.generate_content(f"{sys_prompt}\n\n{user_msg}")
-        
         raw_content = response.text.strip()
         if "```json" in raw_content:
             raw_content = raw_content.split("```json")[1].split("```")[0].strip()
-        elif "[" in raw_content:
-            raw_content = raw_content[raw_content.find("["):raw_content.rfind("]")+1]
-            
+        elif "```" in raw_content:
+            raw_content = raw_content.split("```")[1].split("```")[0].strip()
+
         findings = json.loads(raw_content)
-        if isinstance(findings, dict): # Handle case where it wraps list in a key
-            for k in findings:
-                if isinstance(findings[k], list):
-                    findings = findings[k]
-                    break
 
-        # ── Assemble ──────────────────────────────────────────────────────────
-        answer_lines = []
-        unresolved_count = 0
-        any_resolved = False
-        any_critical = False
-        any_high = False
-        
-        for f in findings:
-            if f.get("resolved"): any_resolved = True
-            risk = f.get("risk_contribution", "MEDIUM")
-            if risk == "CRITICAL": any_critical = True
-            elif risk == "HIGH": any_high = True
-            
-            resolved_tag = "✓ Resolved" if f.get("resolved") else "⚠ Unresolved/Ambiguous"
-            q_text = f"**{f.get('q', '')}**\n{resolved_tag}"
-            if f.get("explicit"): q_text += f"\n- **Explicit Findings:** {f['explicit']}"
-            if f.get("implied"): q_text += f"\n- **Implied Interpretation:** {f['implied']}"
-            if f.get("unresolved"): q_text += f"\n- **Unresolved Gaps:** {f['unresolved']}"
-            answer_lines.append(q_text)
-            if not f.get("resolved"): unresolved_count += 1
+        # ── Render Legal Memo ──────────────────────────────────────────────
+        return _render_legal_memo(findings, evidence_chunks)
 
-        full_answer = "\n\n".join(answer_lines)
-        if unresolved_count > 0:
-            full_answer += f"\n\n---\n**Summary:** {unresolved_count} issues unresolved. Legal counsel recommended."
-
-        evidence_list = []
-        for r in evidence_chunks[:3]:
-            c = r["chunk"]
-            evidence_list.append({"clause_id": c.clause_id, "section": c.section, "page": c.page, "text": c.text[:300]})
-
-        decision = "ANSWER" if any_resolved else "AMBIGUOUS"
-        return {
-            "answer": full_answer,
-            "risk_level": "CRITICAL" if any_critical else ("HIGH" if any_high else "MEDIUM"),
-            "evidence": evidence_list,
-            "confidence": "MEDIUM" if any_resolved else "LOW",
-            "decision": decision,
-            "action": _make_evidence_action(evidence_list) if decision == "ANSWER" else "",
-        }
-        
     except Exception as e:
         print(f"Gemini API Error: {e}")
         return _generate_rule_answer(query, evidence_chunks, evidence_check)
+
+
 
 
 def _generate_rule_answer(query, evidence_chunks, evidence_check):
