@@ -331,38 +331,44 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
 
     # ── Pass 2: Legal Dispute Analysis Report ─────────────────────────────
     sys_prompt = """You are ContractSense, a professional legal AI specializing in contract dispute analysis.
-You produce structured DISPUTE ANALYSIS REPORTS grounded strictly in retrieved contract clauses.
+You produce DISPUTE ANALYSIS REPORTS grounded STRICTLY in retrieved contract clauses.
 
-STATUS CLASSIFICATION (use exactly one per issue):
-- EXPLICITLY_SUPPORTED: A direct clause clearly resolves this issue.
-- PARTIALLY_SUPPORTED: Related clauses exist but do not fully resolve the issue.
-- AMBIGUOUS: Clauses exist but create conflicting or unclear obligations.
-- NOT_FOUND: No relevant clause was retrieved for this issue.
-- OUTSIDE_AGREEMENT: The issue involves facts external to the contract's scope.
+STATUS CLASSIFICATION (pick exactly one per issue):
+- EXPLICITLY_SUPPORTED : A direct clause clearly resolves this issue.
+- PARTIALLY_SUPPORTED  : Closely related clauses exist but do not fully resolve it.
+- AMBIGUOUS            : Clauses conflict or leave obligations unclear.
+- NOT_FOUND            : No relevant clause was retrieved.
+- OUTSIDE_AGREEMENT    : The issue concerns facts external to the contract's scope.
 
 STRICT RULES:
-1. NEVER fabricate clauses. Only reference the provided EVIDENCE.
-2. Use OUTSIDE_AGREEMENT when the contract simply cannot answer the question (e.g., real-world events not addressed).
-3. Cite specific Evidence numbers (Evidence 1, Evidence 2...) when referencing clauses.
-4. Be intellectually honest — if evidence is weak, say so.
-5. Return a JSON object with this exact structure:
+1. NEVER invent or paraphrase clauses that were not provided in EVIDENCE.
+2. Use OUTSIDE_AGREEMENT only when the question concerns real-world events the contract is silent on.
+3. Cite Evidence numbers (e.g. Evidence 3) when quoting retrieved clauses.
+4. For each issue produce four SEPARATE fields — evidence, interpretation, limitation, conclusion.
+5. evidence  = direct quote or precise citation from the retrieved clause (or "No clause retrieved.").
+6. interpretation = what that evidence means for THIS specific legal question.
+7. limitation = what the evidence explicitly does NOT cover or resolve.
+8. conclusion = one definitive sentence on what the contract resolves (or fails to resolve).
+9. Return ONLY a valid JSON object matching this schema exactly:
 {
   "report_title": "DISPUTE ANALYSIS REPORT",
   "document_status": "Grounded|Partially Grounded|Outside Agreement Scope",
   "overall_risk": "CRITICAL|HIGH|MEDIUM|LOW",
   "issues": [
     {
-      "title": "Short descriptive title of the legal issue",
+      "title": "Short descriptive title",
       "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|AMBIGUOUS|NOT_FOUND|OUTSIDE_AGREEMENT",
-      "relevant_clauses": ["Evidence X — what it says", "No direct clause found"],
-      "analysis": "2-3 sentences of grounded legal reasoning.",
-      "conclusion": "One definitive sentence about what this contract says (or doesn't say) on this issue."
+      "relevant_clauses": ["Evidence X — section name or id"],
+      "evidence": "Direct quote or citation from retrieved clause, or 'No clause retrieved.'",
+      "interpretation": "What this evidence means for this legal issue.",
+      "limitation": "What this evidence does NOT cover or explicitly exclude.",
+      "conclusion": "One sentence: what the contract resolves (or fails to) on this issue."
     }
   ],
-  "strongest_for_claimant": ["bullet 1", "bullet 2"],
-  "strongest_for_respondent": ["bullet 1", "bullet 2"],
-  "least_resolved_issue": "Which issue is least clearly resolved and why.",
-  "system_note": "Note any questions that fall outside the contract scope."
+  "strongest_for_claimant": ["point 1", "point 2"],
+  "strongest_for_respondent": ["point 1", "point 2"],
+  "least_resolved_issue": "Name the issue and explain why the contract is silent or ambiguous.",
+  "system_note": "Note any issues that fall outside the contract scope."
 }"""
 
     findings = {}
@@ -437,22 +443,38 @@ def _render_legal_memo(findings: dict, evidence_chunks: list) -> dict:
         lines.append(f"### ISSUE {i} — {issue.get('title', 'Unnamed Issue')}")
         lines.append(f"**Status:** {emoji} `{status}`")
 
-        clauses = issue.get("relevant_clauses", [])
-        if clauses:
-            lines.append("**Relevant Clauses:**")
-            for cl in clauses:
-                lines.append(f"- {cl}")
+        # Evidence field — direct quote
+        ev_text = issue.get("evidence", "").strip()
+        if not ev_text:
+            # Fallback: relevant_clauses list
+            clauses = issue.get("relevant_clauses", [])
+            ev_text = "  \n".join(f"- {cl}" for cl in clauses) if clauses else "No clause retrieved."
+        lines.append(f"**Evidence:**")
+        lines.append(f"> {ev_text}")
 
-        if issue.get("analysis"):
-            lines.append(f"\n**Analysis:** {issue['analysis']}")
-        if issue.get("conclusion"):
-            lines.append(f"\n**Conclusion:** _{issue['conclusion']}_")
+        # Interpretation
+        interp = issue.get("interpretation", "").strip()
+        if interp:
+            lines.append(f"**Interpretation:** {interp}")
+
+        # Limitation
+        limit = issue.get("limitation", "").strip()
+        if limit:
+            lines.append(f"**Limitation:** ⚠ {limit}")
+
+        # Conclusion
+        conclusion = issue.get("conclusion", "").strip()
+        if conclusion:
+            lines.append(f"**Conclusion:** _{conclusion}_")
 
         lines.append("---")
 
     lines.append("### 📊 OVERALL OBSERVATIONS")
-    for b in findings.get("strongest_for_claimant", []):
-        lines.append(f"- {b}")
+    claimant = findings.get("strongest_for_claimant", [])
+    if claimant:
+        lines.append("**Strongest Arguments (Claimant):**")
+        for b in claimant:
+            lines.append(f"- {b}")
     respondent = findings.get("strongest_for_respondent", [])
     if respondent:
         lines.append("\n**Strongest Arguments (Respondent):**")
@@ -554,33 +576,42 @@ def _generate_gemini_api_answer(query, evidence_chunks, evidence_check):
         # ── Pass 2: Legal Dispute Analysis Report ─────────────────────────
         sys_prompt = """You are ContractSense, a professional legal AI. Produce a DISPUTE ANALYSIS REPORT.
 
-STATUS CLASSIFICATION (use exactly one per issue):
-- EXPLICITLY_SUPPORTED: A direct clause clearly resolves this issue.
-- PARTIALLY_SUPPORTED: Related clauses exist but do not fully resolve it.
-- AMBIGUOUS: Clauses exist but create conflicting or unclear obligations.
-- NOT_FOUND: No relevant clause was retrieved for this issue.
-- OUTSIDE_AGREEMENT: The issue involves facts external to the contract scope.
+STATUS CLASSIFICATION (pick exactly one per issue):
+- EXPLICITLY_SUPPORTED : A direct clause clearly resolves this issue.
+- PARTIALLY_SUPPORTED  : Closely related clauses exist but do not fully resolve it.
+- AMBIGUOUS            : Clauses conflict or leave obligations unclear.
+- NOT_FOUND            : No relevant clause was retrieved.
+- OUTSIDE_AGREEMENT    : The issue concerns facts external to the contract's scope.
 
-RULES: Never fabricate clauses. Only reference the provided EVIDENCE. Cite Evidence numbers.
+STRICT RULES:
+1. NEVER invent clauses. Only reference the provided EVIDENCE.
+2. For each issue, produce four separate fields: evidence, interpretation, limitation, conclusion.
+3. evidence = direct quote or citation from retrieved clause (or "No clause retrieved.").
+4. interpretation = what that evidence means for THIS specific legal question.
+5. limitation = what the evidence does NOT cover or explicitly exclude.
+6. conclusion = one definitive sentence on what the contract resolves (or fails to).
+7. Cite Evidence numbers (e.g. Evidence 2) when referencing clauses.
 
-Return ONLY a valid JSON object matching:
+Return ONLY a valid JSON object:
 {
   "report_title": "DISPUTE ANALYSIS REPORT",
   "document_status": "Grounded|Partially Grounded|Outside Agreement Scope",
   "overall_risk": "CRITICAL|HIGH|MEDIUM|LOW",
   "issues": [
     {
-      "title": "Short issue title",
+      "title": "Short descriptive title",
       "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|AMBIGUOUS|NOT_FOUND|OUTSIDE_AGREEMENT",
-      "relevant_clauses": ["Evidence X — description"],
-      "analysis": "2-3 sentence grounded analysis.",
-      "conclusion": "One definitive sentence."
+      "relevant_clauses": ["Evidence X — section name or id"],
+      "evidence": "Direct quote or citation, or 'No clause retrieved.'",
+      "interpretation": "What this evidence means for this legal issue.",
+      "limitation": "What this evidence does NOT cover or explicitly exclude.",
+      "conclusion": "One sentence: what the contract resolves (or fails to) on this issue."
     }
   ],
-  "strongest_for_claimant": ["point 1"],
-  "strongest_for_respondent": ["point 1"],
-  "least_resolved_issue": "Which issue and why.",
-  "system_note": "Note anything outside the contract scope."
+  "strongest_for_claimant": ["point 1", "point 2"],
+  "strongest_for_respondent": ["point 1", "point 2"],
+  "least_resolved_issue": "Name the issue and explain why the contract is silent or ambiguous.",
+  "system_note": "Note any issues that fall outside the contract scope."
 }"""
 
         user_msg = (
