@@ -210,14 +210,8 @@ def generate_grounded_answer(query, evidence_chunks, evidence_check, mode="rule"
     if mode == "groq_api":
         return _generate_groq_api_answer(query, evidence_chunks, evidence_check)
 
-    if mode == "hf_api":
-        return _generate_hf_api_answer(query, evidence_chunks, evidence_check)
-
-    if mode == "api":
-        return _generate_api_answer(query, evidence_chunks, evidence_check)
-
-    if mode == "llm":
-        return _generate_llm_answer(query, evidence_chunks, evidence_check)
+    if mode == "gemini_api":
+        return _generate_gemini_api_answer(query, evidence_chunks, evidence_check)
 
     return _generate_rule_answer(query, evidence_chunks, evidence_check)
 
@@ -238,94 +232,7 @@ def _normalize_answer_data(data, evidence_chunks):
     }
 
 
-def _generate_hf_api_answer(query, evidence_chunks, evidence_check):
-    """
-    Calls the Hugging Face Free Serverless Inference API.
-    """
-    import os
-    import requests
 
-    # The user should set these environment variables
-    hf_api_key = os.environ.get("HF_API_KEY")
-    repo_id = os.environ.get("HF_REPO_ID", "22Jay/ContractSense-Grounded-DPO") # Point to the new DPO aligned model!
-    
-    if not hf_api_key:
-        print("HF_API_KEY not found. Falling back to rule-based generation.")
-        return _generate_rule_answer(query, evidence_chunks, evidence_check)
-
-    api_url = f"https://api-inference.huggingface.co/models/{repo_id}"
-    headers = {"Authorization": f"Bearer {hf_api_key}"}
-
-    context_parts = []
-    for i, r in enumerate(evidence_chunks):
-        c = r["chunk"]
-        context_parts.append(f"[{c.clause_id}] {c.section}: {c.text}")
-    
-    prompt = (
-        f"[INST] You are ContractSense, a grounded contract analysis system.\n\n"
-        f"EVIDENCE:\n" + "\n".join(context_parts) + "\n\n"
-        f"QUERY: {query}\n\n"
-        f"STRICT RULES:\n"
-        f"1. Answer ONLY using the Evidence above.\n"
-        f"2. If the relevant clause is not found, reply with DECISION: NOT_FOUND. Do not escalate or guess.\n"
-        f"3. For yes/no questions, begin with Answer: YES, Answer: NO, or Answer: NOT_FOUND.\n"
-        f"4. Otherwise, quote the evidence, cite the clause_id, and provide a RISK label.\n"
-        f"Output in JSON format matching {{'answer': '...', 'decision': 'ANSWER', 'risk_level': 'MEDIUM'}} if possible."
-        f"[/INST]"
-    )
-
-    try:
-        resp = requests.post(
-            api_url, 
-            headers=headers,
-            json={
-                "inputs": prompt,
-                "parameters": {"max_new_tokens": 400, "temperature": 0.2, "return_full_text": False}
-            },
-            timeout=40
-        )
-        if resp.status_code == 200:
-            result = resp.json()
-            response_text = result[0]["generated_text"]
-            
-            # Simple extraction 
-            decision = "ANSWER"
-            if "NOT_FOUND" in response_text or "not specified" in response_text.lower():
-                decision = "NOT_FOUND"
-
-            import re
-            risk_match = re.search(r"RISK:\s*(LOW|MEDIUM|HIGH|CRITICAL)", response_text)
-            risk_level = risk_match.group(1) if risk_match else "MEDIUM"
-
-            # Format UI Evidence
-            evidence_list = []
-            for r in evidence_chunks[:3]:
-                c = r["chunk"]
-                evidence_list.append({
-                    "clause_id": c.clause_id,
-                    "section": c.section,
-                    "page": c.page,
-                    "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
-                })
-                
-            return {
-                "answer": response_text.replace("```json", "").replace("```", "").strip(),
-                "risk_level": risk_level,
-                "evidence": evidence_list,
-                "confidence": "HIGH",
-                "decision": decision,
-                "action": _make_evidence_action(evidence_list),
-            }
-        elif str(resp.status_code).startswith("5"):
-            print(f"HF API Model is loading or down (Status {resp.status_code}).")
-        else:
-            print(f"HF API Error: {resp.status_code} - {resp.text}")
-            
-    except Exception as e:
-        print(f"HF Request Error: {e}")
-        
-    # Fallback to local CPU logic
-    return _generate_rule_answer(query, evidence_chunks, evidence_check)
 
 
 def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
@@ -534,56 +441,128 @@ def _generate_groq_api_answer(query, evidence_chunks, evidence_check):
 
 
 
-def _generate_api_answer(query, evidence_chunks, evidence_check):
+def _generate_gemini_api_answer(query, evidence_chunks, evidence_check):
     """
-    Calls the external API running on Lightning AI via the Ngrok Tunnel.
-    Add your ngrok URL to environment variables or hardcode here.
+    Calls the Google Gemini API (Gemini 1.5 Flash).
+    Two-pass structure: 1. Decompose 2. Synthesize.
     """
     import os
-    import requests
-
-    api_url = os.environ.get("LIGHTNING_API_URL", "http://REPLACE_WITH_YOUR_NGROK_URL/generate")
-    if "REPLACE_WITH" in api_url:
-        return _generate_rule_answer(query, evidence_chunks, evidence_check)
-
-    context_parts = []
-    for i, r in enumerate(evidence_chunks):
-        c = r["chunk"]
-        context_parts.append(f"[{c.clause_id}] {c.section}: {c.text}")
-    
+    import json
     try:
-        resp = requests.post(
-            api_url, 
-            json={"query": query, "evidence_context": "\n".join(context_parts)},
-            timeout=30
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            
-            # Format UI
-            evidence_list = []
-            for r in evidence_chunks[:3]:
-                c = r["chunk"]
-                evidence_list.append({
-                    "clause_id": c.clause_id,
-                    "section": c.section,
-                    "page": c.page,
-                    "text": c.text[:300] + ("..." if len(c.text) > 300 else ""),
-                })
-                
-            return {
-                "answer": data["answer"],
-                "risk_level": data["risk_level"],
-                "evidence": evidence_list,
-                "confidence": "HIGH",
-                "decision": data["decision"],
-                "action": _make_evidence_action(evidence_list),
-            }
-    except Exception as e:
-        print(f"API Error: {e}")
+        import google.generativeai as genai
+        import streamlit as st
+        api_key = st.secrets.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    except Exception:
+        api_key = os.environ.get("GOOGLE_API_KEY")
+
+    if not api_key:
+        return {
+            "answer": "SYSTEM ERROR: GOOGLE_API_KEY is missing from Streamlit secrets.",
+            "risk_level": "N/A", "evidence": [], "confidence": "LOW",
+            "decision": "NOT_FOUND", "action": ""
+        }
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-    # If the API fails or isn't running, gracefully fallback to CPU rule logic
-    return _generate_rule_answer(query, evidence_chunks, evidence_check)
+        # ── Build evidence context ──────────────────────────────────────────────
+        context_parts = []
+        for i, r in enumerate(evidence_chunks[:5]):
+            c = r["chunk"]
+            context_parts.append(
+                f"[Evidence {i+1}] clause_id: {c.clause_id} | section: {c.section} | page: {c.page}\n{c.text}"
+            )
+        evidence_text = "\n\n".join(context_parts) if context_parts else "No evidence retrieved."
+
+        # ── Pass 1: Decompose ──────────────────────────────────────────────────
+        is_compound = "\n" in query.strip() or len(query) > 300
+        sub_questions = []
+        if is_compound:
+            decomp_prompt = (
+                "Split this multi-part legal question into a JSON list of independent atomic sub-questions. "
+                "Return ONLY a JSON array of strings. Example: [\"Q1\", \"Q2\"]"
+            )
+            response = model.generate_content(f"{decomp_prompt}\n\nQUERY:\n{query}")
+            try:
+                raw = response.text.strip()
+                if "```json" in raw:
+                    raw = raw.split("```json")[1].split("```")[0].strip()
+                elif "[" in raw:
+                    raw = raw[raw.find("["):raw.rfind("]")+1]
+                sub_questions = json.loads(raw)
+            except: sub_questions = [query]
+        else:
+            sub_questions = [query]
+
+        # ── Pass 2: Synthesize ─────────────────────────────────────────────────
+        sys_prompt = (
+            "You are ContractSense, a legal AI. Analyze these sub-questions against the EVIDENCE.\n"
+            "RULES:\n"
+            "1. NO fabrication. 2. Use 'explicit', 'implied', 'unresolved' categories.\n"
+            "3. Use cautious language ('suggests', 'ambiguous'). 4. Cite Evidence X.\n"
+            "Return JSON array: [{\"q\": \"...\", \"explicit\": \"...\", \"implied\": \"...\", \"unresolved\": \"...\", \"resolved\": true/false, \"risk_contribution\": \"LOW|MEDIUM|HIGH|CRITICAL\"}]"
+        )
+        
+        user_msg = f"EVIDENCE:\n{evidence_text}\n\nSUB-QUESTIONS:\n" + "\n".join(sub_questions[:8]) + "\n\nReturn JSON ONLY."
+        response = model.generate_content(f"{sys_prompt}\n\n{user_msg}")
+        
+        raw_content = response.text.strip()
+        if "```json" in raw_content:
+            raw_content = raw_content.split("```json")[1].split("```")[0].strip()
+        elif "[" in raw_content:
+            raw_content = raw_content[raw_content.find("["):raw_content.rfind("]")+1]
+            
+        findings = json.loads(raw_content)
+        if isinstance(findings, dict): # Handle case where it wraps list in a key
+            for k in findings:
+                if isinstance(findings[k], list):
+                    findings = findings[k]
+                    break
+
+        # ── Assemble ──────────────────────────────────────────────────────────
+        answer_lines = []
+        unresolved_count = 0
+        any_resolved = False
+        any_critical = False
+        any_high = False
+        
+        for f in findings:
+            if f.get("resolved"): any_resolved = True
+            risk = f.get("risk_contribution", "MEDIUM")
+            if risk == "CRITICAL": any_critical = True
+            elif risk == "HIGH": any_high = True
+            
+            resolved_tag = "✓ Resolved" if f.get("resolved") else "⚠ Unresolved/Ambiguous"
+            q_text = f"**{f.get('q', '')}**\n{resolved_tag}"
+            if f.get("explicit"): q_text += f"\n- **Explicit Findings:** {f['explicit']}"
+            if f.get("implied"): q_text += f"\n- **Implied Interpretation:** {f['implied']}"
+            if f.get("unresolved"): q_text += f"\n- **Unresolved Gaps:** {f['unresolved']}"
+            answer_lines.append(q_text)
+            if not f.get("resolved"): unresolved_count += 1
+
+        full_answer = "\n\n".join(answer_lines)
+        if unresolved_count > 0:
+            full_answer += f"\n\n---\n**Summary:** {unresolved_count} issues unresolved. Legal counsel recommended."
+
+        evidence_list = []
+        for r in evidence_chunks[:3]:
+            c = r["chunk"]
+            evidence_list.append({"clause_id": c.clause_id, "section": c.section, "page": c.page, "text": c.text[:300]})
+
+        decision = "ANSWER" if any_resolved else "AMBIGUOUS"
+        return {
+            "answer": full_answer,
+            "risk_level": "CRITICAL" if any_critical else ("HIGH" if any_high else "MEDIUM"),
+            "evidence": evidence_list,
+            "confidence": "MEDIUM" if any_resolved else "LOW",
+            "decision": decision,
+            "action": _make_evidence_action(evidence_list) if decision == "ANSWER" else "",
+        }
+        
+    except Exception as e:
+        print(f"Gemini API Error: {e}")
+        return _generate_rule_answer(query, evidence_chunks, evidence_check)
 
 
 def _generate_rule_answer(query, evidence_chunks, evidence_check):
@@ -723,41 +702,4 @@ def _specialized_rule_answer(query, evidence_chunks, evidence_list, evidence_che
     return None
 
 
-def _generate_llm_answer(query, evidence_chunks, evidence_check):
-    """
-    LLM-based generation using DPO-aligned Mistral.
-    This is called when running on GPU (Lightning AI / local).
-    Falls back to rule-based if model isn't loaded.
-    """
-    try:
-        prompt = _build_llm_prompt(query, evidence_chunks)
 
-        from src.pipeline._model_cache import get_model_and_tokenizer
-        model, tokenizer = get_model_and_tokenizer()
-
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
-        inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
-        with __import__("torch").no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=512,
-                temperature=0.3,
-                do_sample=True,
-                top_p=0.9,
-                pad_token_id=tokenizer.eos_token_id,
-            )
-
-        response_text = tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-
-        try:
-            json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
-            if json_match:
-                return _normalize_answer_data(json.loads(json_match.group()), evidence_chunks)
-        except json.JSONDecodeError:
-            pass
-
-        return _generate_rule_answer(query, evidence_chunks, evidence_check)
-
-    except Exception:
-        return _generate_rule_answer(query, evidence_chunks, evidence_check)

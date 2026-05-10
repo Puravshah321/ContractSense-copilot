@@ -233,25 +233,27 @@ class ContractSensePipeline:
             trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
 
         trace.append("Stage 6: Generating answer...")
+        trace.append("Stage 6: Generating answer...")
         import os
+        try:
+            import streamlit as st
+            gemini_key = st.secrets.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+            groq_key = st.secrets.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
+        except:
+            gemini_key = os.environ.get("GOOGLE_API_KEY")
+            groq_key = os.environ.get("GROQ_API_KEY")
+
         mode = "rule"
-        prefer_local_llm = os.environ.get("FORCE_LOCAL_LLM", "0") == "1"
         if force_rule:
             trace.append("  -> Routing to Rule-based engine (Forced)")
-        elif self.use_llm and prefer_local_llm:
-            mode = "llm"
-            trace.append("  -> Routing to local GPU LLM...")
-        elif os.environ.get("GROQ_API_KEY"):
+        elif groq_key:
             mode = "groq_api"
-            trace.append("  -> Routing to Groq Fast API (Wizard of Oz)...")
-        elif os.environ.get("HF_API_KEY"):
-            mode = "hf_api"
-            trace.append("  -> Routing to Hugging Face Serverless API...")
-        elif os.environ.get("LIGHTNING_API_URL") and os.environ.get("LIGHTNING_API_URL") != "http://REPLACE_WITH_YOUR_NGROK_URL/generate":
-            mode = "api"
-            trace.append("  -> Routing to Lightning AI GPU API...")
-        elif self.use_llm:
-            mode = "llm"
+            trace.append("  -> Routing to Groq (Llama-3.3-70b)...")
+        elif gemini_key:
+            mode = "gemini_api"
+            trace.append("  -> Routing to Gemini (1.5-Flash)...")
+        else:
+            trace.append("  -> WARNING: No LLM API keys found; using rule-based engine.")
 
         effective_evidence_check = dict(evidence_check)
         effective_evidence_check["coverage"] = coverage
@@ -260,7 +262,7 @@ class ContractSensePipeline:
             effective_evidence_check["confidence"] = max(float(effective_evidence_check.get("confidence", 0.0)), 0.35)
 
         # ── NEW Stage 6A: Evidence-Aware Synthesis for analytical queries
-        use_llm_generator = mode in ("groq_api", "hf_api", "api", "llm")
+        use_llm_generator = mode in ("groq_api", "gemini_api")
         
         if (
             not use_llm_generator
