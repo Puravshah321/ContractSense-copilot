@@ -167,13 +167,34 @@ def generate_grounded_answer(query, evidence_chunks, evidence_check, mode="rule"
         query: user question
         evidence_chunks: list of retrieved chunk dicts
         evidence_check: output from evidence_checker
-        mode: "rule" for CPU-only, "llm" for GPU model
+        mode: "rule" for CPU-only, "groq_api" or "gemini_api" for LLM
 
     Returns:
         dict with: answer, risk_level, evidence, confidence, decision, action
     """
-    # DECISION GATE: refuse if evidence is insufficient.
-    # NO EVIDENCE != ESCALATE. No relevant evidence is a high-confidence NOT_FOUND.
+    # ── LLMs handle partial evidence themselves — route them first ──────────
+    # Groq and Gemini are capable of producing "NOT_FOUND" or "AMBIGUOUS"
+    # answers on their own when evidence is weak.  Blocking them here causes
+    # the worst possible UX: a hard NOT_FOUND before any reasoning happens.
+    if mode == "groq_api":
+        if not evidence_chunks:
+            return {
+                "answer": "No clauses were retrieved from the document. The contract may not address this question.",
+                "risk_level": "N/A", "evidence": [], "confidence": "HIGH",
+                "decision": "NOT_FOUND", "action": "",
+            }
+        return _generate_groq_api_answer(query, evidence_chunks, evidence_check)
+
+    if mode == "gemini_api":
+        if not evidence_chunks:
+            return {
+                "answer": "No clauses were retrieved from the document. The contract may not address this question.",
+                "risk_level": "N/A", "evidence": [], "confidence": "HIGH",
+                "decision": "NOT_FOUND", "action": "",
+            }
+        return _generate_gemini_api_answer(query, evidence_chunks, evidence_check)
+
+    # ── Rule-based mode: apply strict gating ────────────────────────────────
     if evidence_check["decision"] == "INSUFFICIENT" or not evidence_chunks:
         prefix = "Answer: NOT_FOUND\n\n" if evidence_check.get("is_yes_no") or _is_yes_no_query(query) else ""
         return {
@@ -206,12 +227,6 @@ def generate_grounded_answer(query, evidence_chunks, evidence_check, mode="rule"
             "decision": "NOT_FOUND",
             "action": "",
         }
-
-    if mode == "groq_api":
-        return _generate_groq_api_answer(query, evidence_chunks, evidence_check)
-
-    if mode == "gemini_api":
-        return _generate_gemini_api_answer(query, evidence_chunks, evidence_check)
 
     return _generate_rule_answer(query, evidence_chunks, evidence_check)
 

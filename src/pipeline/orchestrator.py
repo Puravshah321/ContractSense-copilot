@@ -241,15 +241,18 @@ class ContractSensePipeline:
             trace.append("  -> GATE: ESCALATE because evidence appears conflicting")
         elif is_factual_path and evidence_check["decision"] == "INSUFFICIENT":
             trace.append("  -> GATE: NOT_FOUND (strict factual mode)")
-        elif is_analytical_path and evidence_check["decision"] == "INSUFFICIENT" and coverage["decision"] == "PARTIAL":
+        elif is_analytical_path:
+            # For analytical/dispute queries, ALWAYS route to the LLM.
+            # The LLM can handle partial or missing evidence gracefully by flagging gaps.
+            # Blocking it here causes the worst possible UX: a hard NOT_FOUND on complex queries.
             analytical_partial = True
-            trace.append("  -> GATE: PARTIAL analytical coverage accepted; will answer with explicit gaps")
-        elif evidence_check["decision"] == "INSUFFICIENT":
-            trace.append("  -> GATE: NOT_FOUND because no relevant clause passed the match check")
+            if evidence_check["decision"] == "INSUFFICIENT":
+                trace.append("  -> GATE: PARTIAL analytical; evidence is weak but routing to LLM with gap flags")
+            else:
+                trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
         else:
             trace.append("  -> GATE: Sufficient evidence; generating grounded answer")
 
-        trace.append("Stage 6: Generating answer...")
         trace.append("Stage 6: Generating answer...")
         import os
         try:
