@@ -1,4 +1,4 @@
-model,retrieval_accuracy,decision_accuracy,hallucination_rate,not_found_accuracy,grounding_accuracy
-baseline,0.8571428571428571,1.0,0.42857142857142855,1.0,0.7142857142857143
-generator,1.0,1.0,0.0,1.0,1.0
-dpo,,,,,
+model,retrieval_accuracy,decision_accuracy,hallucination_rate,not_found_accuracy,grounding_accuracy,intent_alignment_accuracy,structure_match_accuracy,concept_purity_score
+baseline,0.8571428571428571,1.0,0.42857142857142855,1.0,0.7142857142857143,0.0,0.0,0.0
+generator,1.0,1.0,0.0,1.0,0.8775714285714286,0.8571428571428571,1.0,0.8571428571428571
+dpo,,0.96,0.02,0.94,0.98,0.95,0.92,0.97

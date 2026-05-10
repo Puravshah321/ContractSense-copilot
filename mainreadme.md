@@ -173,7 +173,7 @@ The NLP community has thousands of medical, financial, and general QA papers. Co
 ```
 contractsense/
 │
-├── README.md                          ← You are here
+├── README.md
 ├── requirements.txt
 ├── .env.example
 │
