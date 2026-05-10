@@ -63,20 +63,32 @@ def _strict_topic_match(query, chunk):
     """Intent-specific clause match so secondary boost terms do not create false positives."""
     q = query.lower()
     text = f"{chunk.section} {chunk.text[:700]}".lower()
+    
+    # ── PRODUCTION UPGRADE: Legal Tag Override ──────────────────
+    # If the chunk was tagged with a high-confidence legal concept
+    # that matches the query triggers, it's a guaranteed match.
+    chunk_tags = set(chunk.metadata.get("legal_tags", []))
+    
     topic_groups = [
-        (("warranty", "warranties", "guarantee"), ("warranty", "warranties", "warrants", "guarantee", "representations")),
-        (("duration", "how long", "term"), ("duration", "term", "valid up to", "validity", "effective", "commencement", "expiration", "expires", "year", "month", "day", "date of signing")),
-        (("outside india", "india"), ("india", "outside india", "outside the country", "country", "transfer", "send", "hosted", "taken outside")),
-        (("data", "personal data", "audit data"), ("data", "audit information", "confidential information", "personal data", "processor", "controller", "privacy", "disclose", "use")),
-        (("share", "third part", "external team", "external"), ("share", "disclose", "disclosure", "third party", "other person", "entity", "need to know", "prior written approval", "consent")),
-        (("ai", "training", "model"), ("scope of audit", "audit information", "confidential information", "not to make", "not to disclose", "use the confidential information")),
-        (("penalty", "penalties"), ("liquidated damages", "contract value", "loss or damages", "compensate", "remedies", "breach")),
-        (("liability", "damages", "cap"), ("liability", "liable", "damages", "cap", "limit", "limitation")),
-        (("termination", "terminate"), ("termination", "terminate", "notice", "breach")),
+        (("warranty", "warranties", "guarantee"), ("warranty", "warranties", "warrants", "guarantee", "representations"), ["warranty"]),
+        (("duration", "how long", "term"), ("duration", "term", "valid up to", "validity", "effective", "commencement", "expiration", "expires", "year", "month", "day", "date of signing"), ["duration"]),
+        (("outside india", "india"), ("india", "outside india", "outside the country", "country", "transfer", "send", "hosted", "taken outside"), ["data_protection"]),
+        (("data", "personal data", "audit data"), ("data", "audit information", "confidential information", "personal data", "processor", "controller", "privacy", "disclose", "use"), ["data_protection", "confidentiality"]),
+        (("share", "third part", "external team", "external"), ("share", "disclose", "disclosure", "third party", "other person", "entity", "need to know", "prior written approval", "consent"), ["confidentiality", "subcontractor"]),
+        (("ai", "training", "model"), ("scope of audit", "audit information", "confidential information", "not to make", "not to disclose", "use the confidential information"), ["confidentiality"]),
+        (("penalty", "penalties"), ("liquidated damages", "contract value", "loss or damages", "compensate", "remedies", "breach"), ["payment", "liability_cap"]),
+        (("liability", "damages", "cap"), ("liability", "liable", "damages", "cap", "limit", "limitation"), ["liability_cap", "gross_negligence", "indemnification"]),
+        (("termination", "terminate"), ("termination", "terminate", "notice", "breach"), ["termination", "cure_period"]),
+        (("subcontractor", "contractor", "third party negligence"), ("contractor", "subcontractor", "deemed", "attributable", "negligence"), ["subcontractor"]),
     ]
-    for triggers, required_terms in topic_groups:
+    
+    for triggers, required_terms, valid_tags in topic_groups:
         if any(_trigger_present(t, q) for t in triggers):
+            # Pass if tags match OR keywords match
+            if chunk_tags & set(valid_tags):
+                return True
             return any(term in text for term in required_terms)
+            
     return True
 
 
