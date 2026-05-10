@@ -30,9 +30,18 @@ html, body, [class*="css"]  { font-family: 'Inter', sans-serif !important; }
 
 [data-testid="stSidebar"] { background: #0A0E1A; border-right: 1px solid #1C2333; }
 
-#MainMenu, footer { visibility: hidden; }
-[data-testid="stHeader"] { background: transparent; }
-[data-testid="stToolbar"] { display: none; }
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+
+/* Force Sidebar Toggle to always be visible and white */
+[data-testid="collapsedControl"] { 
+    visibility: visible !important; 
+    color: #E2E8F0 !important; 
+    background: rgba(13, 17, 23, 0.7) !important;
+    border-radius: 8px !important;
+}
+
+[data-testid="stHeader"] { background: transparent !important; }
 
 /* Logo */
 .cs-logo {
@@ -73,7 +82,8 @@ html, body, [class*="css"]  { font-family: 'Inter', sans-serif !important; }
 }
 
 /* Chat input */
-[data-testid="stChatInput"] { padding-bottom: 20px; }
+[data-testid="stChatInput"] { padding-bottom: 20px; background: transparent !important; }
+[data-testid="stChatInput"] > div { background: transparent !important; border: none !important; }
 [data-testid="stChatInput"] textarea {
     background: #131929!important; 
     border: 1px solid #2D3748!important;
