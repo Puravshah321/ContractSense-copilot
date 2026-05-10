@@ -30,7 +30,8 @@ html, body, [class*="css"]  { font-family: 'Inter', sans-serif !important; }
 
 [data-testid="stSidebar"] { background: #0A0E1A; border-right: 1px solid #1C2333; }
 
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer { visibility: hidden; }
+[data-testid="stHeader"] { background: transparent; }
 [data-testid="stToolbar"] { display: none; }
 
 /* Logo */
@@ -72,9 +73,20 @@ html, body, [class*="css"]  { font-family: 'Inter', sans-serif !important; }
 }
 
 /* Chat input */
+[data-testid="stChatInput"] { padding-bottom: 20px; }
 [data-testid="stChatInput"] textarea {
-    background: #0D1117!important; border: 1px solid #1C2333!important;
-    color: #E2E8F0!important; border-radius: 12px!important;
+    background: #131929!important; 
+    border: 1px solid #2D3748!important;
+    color: #E2E8F0!important; 
+    border-radius: 16px!important;
+    padding: 14px 20px!important;
+    font-size: 1rem!important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2)!important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease!important;
+}
+[data-testid="stChatInput"] textarea:focus {
+    border-color: #4F8EF7!important;
+    box-shadow: 0 0 0 2px rgba(79, 142, 247, 0.2)!important;
 }
 
 /* Scrollbar */
