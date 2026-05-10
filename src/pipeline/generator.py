@@ -336,7 +336,7 @@ You produce DISPUTE ANALYSIS REPORTS grounded STRICTLY in retrieved contract cla
 STATUS CLASSIFICATION (pick exactly one per issue):
 - EXPLICITLY_SUPPORTED : A direct clause clearly resolves this issue.
 - PARTIALLY_SUPPORTED  : Closely related clauses exist but do not fully resolve it.
-- AMBIGUOUS            : Clauses conflict or leave obligations unclear.
+- UNRESOLVED           : Contract is silent or clauses are inherently unclear (do not use CONFLICTING unless explicit direct contradiction exists).
 - NOT_FOUND            : No relevant clause was retrieved.
 - OUTSIDE_AGREEMENT    : The issue concerns facts external to the contract's scope.
 
@@ -348,7 +348,7 @@ STRICT RULES:
 5. evidence  = direct quote or precise citation from the retrieved clause (or "No clause retrieved.").
 6. interpretation = what that evidence means for THIS specific legal question.
 7. limitation = what the evidence explicitly does NOT cover or resolve.
-8. conclusion = one definitive sentence on what the contract resolves (or fails to resolve).
+8. conclusion = one definitive sentence on what the contract resolves (or fails to resolve). USE PROFESSIONAL, NON-ABSOLUTE LANGUAGE (e.g., "The agreement strongly limits..." instead of "The developer cannot...").
 9. Return ONLY a valid JSON object matching this schema exactly:
 {
   "report_title": "DISPUTE ANALYSIS REPORT",
@@ -357,7 +357,7 @@ STRICT RULES:
   "issues": [
     {
       "title": "Short descriptive title",
-      "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|AMBIGUOUS|NOT_FOUND|OUTSIDE_AGREEMENT",
+      "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|UNRESOLVED|NOT_FOUND|OUTSIDE_AGREEMENT",
       "relevant_clauses": ["Evidence X — section name or id"],
       "evidence": "Direct quote or citation from retrieved clause, or 'No clause retrieved.'",
       "interpretation": "What this evidence means for this legal issue.",
@@ -423,6 +423,7 @@ def _render_legal_memo(findings: dict, evidence_chunks: list) -> dict:
     STATUS_EMOJI = {
         "EXPLICITLY_SUPPORTED": "🟢",
         "PARTIALLY_SUPPORTED":  "🟡",
+        "UNRESOLVED":           "🔴",
         "AMBIGUOUS":            "🔴",
         "NOT_FOUND":            "⚫",
         "OUTSIDE_AGREEMENT":    "🔵",
@@ -438,7 +439,7 @@ def _render_legal_memo(findings: dict, evidence_chunks: list) -> dict:
     lines.append("---")
 
     for i, issue in enumerate(issues, 1):
-        status = issue.get("status", "AMBIGUOUS")
+        status = issue.get("status", "UNRESOLVED")
         emoji  = STATUS_EMOJI.get(status, "🔴")
         lines.append(f"### ISSUE {i} — {issue.get('title', 'Unnamed Issue')}")
         lines.append(f"**Status:** {emoji} `{status}`")
@@ -579,7 +580,7 @@ def _generate_gemini_api_answer(query, evidence_chunks, evidence_check):
 STATUS CLASSIFICATION (pick exactly one per issue):
 - EXPLICITLY_SUPPORTED : A direct clause clearly resolves this issue.
 - PARTIALLY_SUPPORTED  : Closely related clauses exist but do not fully resolve it.
-- AMBIGUOUS            : Clauses conflict or leave obligations unclear.
+- UNRESOLVED           : Contract is silent or clauses are inherently unclear (do not use CONFLICTING unless explicit direct contradiction exists).
 - NOT_FOUND            : No relevant clause was retrieved.
 - OUTSIDE_AGREEMENT    : The issue concerns facts external to the contract's scope.
 
@@ -589,7 +590,7 @@ STRICT RULES:
 3. evidence = direct quote or citation from retrieved clause (or "No clause retrieved.").
 4. interpretation = what that evidence means for THIS specific legal question.
 5. limitation = what the evidence does NOT cover or explicitly exclude.
-6. conclusion = one definitive sentence on what the contract resolves (or fails to).
+6. conclusion = one definitive sentence on what the contract resolves (or fails to). USE PROFESSIONAL, NON-ABSOLUTE LANGUAGE (e.g., "The agreement strongly limits..." instead of "The developer cannot...").
 7. Cite Evidence numbers (e.g. Evidence 2) when referencing clauses.
 
 Return ONLY a valid JSON object:
@@ -600,7 +601,7 @@ Return ONLY a valid JSON object:
   "issues": [
     {
       "title": "Short descriptive title",
-      "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|AMBIGUOUS|NOT_FOUND|OUTSIDE_AGREEMENT",
+      "status": "EXPLICITLY_SUPPORTED|PARTIALLY_SUPPORTED|UNRESOLVED|NOT_FOUND|OUTSIDE_AGREEMENT",
       "relevant_clauses": ["Evidence X — section name or id"],
       "evidence": "Direct quote or citation, or 'No clause retrieved.'",
       "interpretation": "What this evidence means for this legal issue.",

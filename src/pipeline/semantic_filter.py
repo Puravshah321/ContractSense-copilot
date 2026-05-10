@@ -150,6 +150,16 @@ def filter_and_rerank(query, retrieved, query_profile, keep_k=None):
 
     scored.sort(key=lambda x: x["final_score"], reverse=True)
 
+    # Limit same clause text to max 2 occurrences to improve diversity
+    diversity_filtered = []
+    text_counts = {}
+    for s in scored:
+        txt = s["chunk"].text.strip()
+        text_counts[txt] = text_counts.get(txt, 0) + 1
+        if text_counts[txt] <= 2:
+            diversity_filtered.append(s)
+    scored = diversity_filtered
+
     if query_profile.expected_categories:
         aligned = [
             r for r in scored

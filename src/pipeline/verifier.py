@@ -189,13 +189,13 @@ def verify_grounding(answer_data, evidence_chunks):
 
     ratio = supported / len(claims)
     if ratio >= 0.80:
-        verdict = "EXPLICITLY_SUPPORTED"
+        verdict = "STRONGLY_GROUNDED"
     elif ratio >= 0.50:
-        verdict = "PARTIALLY_SUPPORTED"
+        verdict = "PARTIALLY_GROUNDED"
     elif ratio >= 0.30:
-        verdict = "AMBIGUOUS"
+        verdict = "WEAKLY_GROUNDED"
     else:
-        verdict = "NOT_FOUND"
+        verdict = "UNSUPPORTED"
 
     return {
         "verdict": verdict,

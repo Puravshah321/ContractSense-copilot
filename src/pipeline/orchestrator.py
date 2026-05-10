@@ -375,9 +375,9 @@ class ContractSensePipeline:
         # Partial support / Ambiguous -> MEDIUM
         # Not found / Rejected / Weak -> LOW
         v = verification["verdict"]
-        if v in {"EXPLICITLY_SUPPORTED", "VERIFIED"}:
+        if v in {"STRONGLY_GROUNDED", "EXPLICITLY_SUPPORTED", "VERIFIED"}:
             answer_data["confidence"] = "HIGH"
-        elif v in {"PARTIALLY_SUPPORTED", "PARTIALLY_VERIFIED", "AMBIGUOUS"}:
+        elif v in {"PARTIALLY_GROUNDED", "PARTIALLY_SUPPORTED", "PARTIALLY_VERIFIED"}:
             answer_data["confidence"] = "MEDIUM"
         else:
             answer_data["confidence"] = "LOW"

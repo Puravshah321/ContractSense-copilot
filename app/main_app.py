@@ -148,15 +148,24 @@ def _conf_color(conf):
 import re
 
 def _render_styled_clause(text, query=""):
-    """Render full clause text in a scrollable, styled panel with basic highlighting."""
-    # Basic highlighting for common terms if they appear
-    terms_to_highlight = ["malware", "harmful code", "malicious code", "liability", "indemnify", "survive", "terminate", "confidential"]
+    """Render full clause text in a scrollable, styled panel with dynamic highlighting based on query."""
+    import re
     html_text = text.replace("<", "&lt;").replace(">", "&gt;")
     
-    # Simple naive highlighting for visual demo purposes
+    # Base terms for high-stakes concepts
+    terms_to_highlight = ["malware", "harmful code", "malicious code", "liability", "indemnify", "survive", "terminate", "confidential"]
+    
+    # Extract naive keywords from query
+    if query:
+        query_words = [w.strip("?,.! ") for w in query.lower().split() if len(w) > 4]
+        terms_to_highlight.extend(query_words)
+    
+    # Remove duplicates and sort by length descending to match longest phrases first
+    terms_to_highlight = sorted(list(set(terms_to_highlight)), key=len, reverse=True)
+    
     for term in terms_to_highlight:
-        # Case insensitive replace using regex
-        pattern = re.compile(f"({term})", re.IGNORECASE)
+        if len(term) < 4: continue
+        pattern = re.compile(f"({re.escape(term)})", re.IGNORECASE)
         html_text = pattern.sub(r"<span style='background-color:#4F8EF733; color:#8DB3F9; padding:0 2px; border-radius:3px; font-weight:600;'>\1</span>", html_text)
         
     return f"<div style='background:#131929; padding:14px; border-radius:8px; border:1px solid #1C2333; font-family:\"JetBrains Mono\", monospace; font-size:0.82rem; color:#A0AEC0; white-space:pre-wrap; max-height:400px; overflow-y:auto; line-height:1.5;'>{html_text}</div>"
@@ -216,6 +225,13 @@ def render_assistant_message(msg: dict):
     evidence = msg.get("evidence", [])
     if evidence:
         st.markdown("<br/>", unsafe_allow_html=True)
+        # Assuming the query is the last user message, or we can just use the most recent query from session state
+        last_query = ""
+        for m in reversed(st.session_state.messages):
+            if m["role"] == "user":
+                last_query = m["content"]
+                break
+                
         for ev in evidence:
             cid  = ev.get("clause_id", "?")
             sec  = ev.get("section", "General")
@@ -226,7 +242,7 @@ def render_assistant_message(msg: dict):
             with st.expander(f"📎 {cid} · {sec} · p.{pg}", expanded=False):
                 if tags:
                     st.markdown(" ".join(f"`{t}`" for t in tags[:5]))
-                st.markdown(_render_styled_clause(txt), unsafe_allow_html=True)
+                st.markdown(_render_styled_clause(txt, query=last_query), unsafe_allow_html=True)
 
     # ── Grounding bar ─────────────────────────────────────────────────────
     v = msg.get("verification") or {}
@@ -235,6 +251,10 @@ def render_assistant_message(msg: dict):
     if verdict:
         pct   = int(ratio * 100)
         label = {
+            "STRONGLY_GROUNDED": "✅ Strongly Grounded",
+            "PARTIALLY_GROUNDED": "🟡 Partially Grounded",
+            "WEAKLY_GROUNDED": "🟠 Weakly Grounded",
+            "UNSUPPORTED": "❌ Unsupported",
             "EXPLICITLY_SUPPORTED": "✅ Explicitly Supported",
             "PARTIALLY_SUPPORTED": "🟡 Partially Supported",
             "AMBIGUOUS": "🟠 Ambiguous",
