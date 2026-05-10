@@ -18,6 +18,7 @@ from src.pipeline.generator import generate_grounded_answer
 from src.pipeline.verifier import verify_grounding
 from src.pipeline.query_understanding import classify_query
 from src.pipeline.query_decomposer import decompose_query
+from src.pipeline.legal_tagger import tag_all_chunks, CONCEPT_TO_TAGS
 from src.pipeline.semantic_filter import filter_and_rerank
 from src.pipeline.coverage_model import assess_coverage
 from src.pipeline.evidence_extractor import extract_facts_from_evidence, normalize_facts_to_summary
@@ -80,6 +81,9 @@ class ContractSensePipeline:
         if not self.chunks:
             self.document_loaded = False
             return 0
+
+        # ── Tag every chunk with legal clause types at index time ──────────
+        tag_all_chunks(self.chunks)
 
         self.retriever = HybridRetriever(
             self.chunks,
@@ -147,12 +151,24 @@ class ContractSensePipeline:
             trace.append(f"  -> Generated {len(sub_queries)} sub-queries")
 
         trace.append("Stage 2: Retrieving relevant clauses...")
+
+        # Compute target legal tags from query concepts
+        target_tags = []
+        for concept in query_profile.concepts:
+            target_tags.extend(CONCEPT_TO_TAGS.get(concept, []))
+        # Deduplicate while preserving priority order
+        seen = set()
+        target_tags = [t for t in target_tags if not (t in seen or seen.add(t))]
+        if target_tags:
+            trace.append(f"  -> Target legal tags: {', '.join(target_tags[:6])}")
+
         if is_factual_path:
             retrieval_top_k = max(3, min(5, top_k))
             raw_candidates = self.retriever.retrieve(
                 user_query,
                 top_k=retrieval_top_k,
                 candidate_k=max(12, retrieval_top_k * 2),
+                target_tags=target_tags or None,
             )
         else:
             retrieval_top_k = max(query_profile.retrieval_depth, top_k, 8)
@@ -162,6 +178,7 @@ class ContractSensePipeline:
                     sq,
                     top_k=retrieval_top_k,
                     candidate_k=max(20, retrieval_top_k * 3),
+                    target_tags=target_tags or None,
                 )
                 for item in part:
                     enriched = dict(item)

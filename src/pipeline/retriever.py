@@ -44,8 +44,9 @@ _QUERY_EXPANSIONS = {
     "ai": ["ai", "training", "model", "use", "audit", "data", "confidential", "scope", "purpose", "copy", "retain"],
     "models": ["model", "models", "training", "ai", "use", "audit", "data", "confidential", "scope", "purpose"],
     "penalty": ["penalty", "penalties", "damages", "liquidated", "loss", "compensate", "contract value", "breach", "remedies"],
-    "termination": ["termination", "terminate", "expires", "notice", "breach", "term"],
-    "payment": ["payment", "pay", "invoice", "fees", "late", "interest"],
+    "termination": ["termination", "terminate", "expires", "notice", "breach", "term",
+                     "cure", "cure period", "opportunity to cure", "right to cure"],
+    "payment": ["payment", "pay", "invoice", "fees", "late", "interest", "payable", "due"],
     "indemnification": ["indemnification", "indemnify", "indemnity", "hold harmless", "third-party", "claim"],
 }
 
@@ -210,7 +211,7 @@ class HybridRetriever:
             scores[idx] = scores.get(idx, 0) + 1.0 / (k + rank + 1)
         return sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-    def _rerank(self, query, fused_results):
+    def _rerank(self, query, fused_results, target_tags=None):
         reranked = []
         for idx, base_score in fused_results:
             chunk = self.chunks[idx]
@@ -219,6 +220,21 @@ class HybridRetriever:
             penalty = _generic_penalty(chunk)
             q_lower = query.lower()
             chunk_text = f"{chunk.section} {chunk.text[:700]}".lower()
+
+            # ── LEGAL TAG BOOST (production upgrade) ──────────────────────
+            # If caller provides target_tags (from query concept → CONCEPT_TO_TAGS),
+            # boost any chunk whose legal_tags overlap with those targets.
+            tag_boost = 0.0
+            if target_tags:
+                chunk_tags = set(chunk.metadata.get("legal_tags", []))
+                overlap = chunk_tags & set(target_tags)
+                if overlap:
+                    # Each matching tag adds 0.35; max cap at 1.0
+                    tag_boost = min(len(overlap) * 0.35, 1.0)
+                    # Primary target match (first tag in target_tags) gets stronger boost
+                    if target_tags[0] in chunk_tags:
+                        tag_boost += 0.25
+
             if ("warranty" in q_lower or "warrant" in q_lower) and not re.search(r"\bwarrant(?:y|ies|s)?\b|\bguarantee\b", chunk_text):
                 penalty += 0.75
             if ("duration" in q_lower or "term" in q_lower) and "survival" in chunk_text and "valid up to" not in chunk_text:
@@ -231,13 +247,18 @@ class HybridRetriever:
                 section_bonus += 0.45
             if "penalty" in q_lower and re.search(r"\bliquidated\s+damages\b|\bcontract\s+value\b|\bloss\s+or\s+damages\b", chunk_text):
                 section_bonus += 0.55
-            final_score = float(base_score) + (0.55 * keyword_score) + section_bonus - penalty
+
+            final_score = float(base_score) + (0.55 * keyword_score) + section_bonus + tag_boost - penalty
             reranked.append((idx, final_score, keyword_score, section_bonus, penalty))
         return sorted(reranked, key=lambda x: x[1], reverse=True)
 
-    def retrieve(self, query, top_k=3, candidate_k=10):
+    def retrieve(self, query, top_k=3, candidate_k=10, target_tags=None):
         """
-        Retrieve candidates, rerank them, and keep the top evidence clauses.
+        Retrieve candidates, rerank them with legal tag boosting, and keep the top evidence clauses.
+
+        Args:
+            target_tags: optional list of legal tag strings to boost
+                         (e.g. ["subcontractor", "force_majeure"])
 
         Returns list of dicts:
           {chunk: Chunk, score: float, retrieval_method: str}
@@ -253,7 +274,7 @@ class HybridRetriever:
             fused = [(idx, score) for idx, score in sparse]
             method = "tfidf_only"
 
-        reranked = self._rerank(query, fused)
+        reranked = self._rerank(query, fused, target_tags=target_tags)
         results = []
         for idx, score, keyword_score, section_bonus, penalty in reranked[:top_k]:
             results.append({
@@ -263,5 +284,6 @@ class HybridRetriever:
                 "keyword_overlap": round(keyword_score, 3),
                 "section_bonus": round(section_bonus, 3),
                 "generic_penalty": round(penalty, 3),
+                "legal_tags": self.chunks[idx].metadata.get("legal_tags", []),
             })
         return results
