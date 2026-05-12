@@ -176,12 +176,18 @@ These three charts are the presentation-safe versions. They compare the same thr
 ![Grounding accuracy comparison](Images/three_way_grounding_accuracy.png)
 
 ![Hallucination rate comparison](Images/three_way_hallucination_rate.png)
+![Tool policy compliance comparison](Images/three_way_tool_policy.png)
+![Actionability comparison](Images/three_way_actionability.png)
 
 ### Supporting artifacts
 
 - `Images/three_way_comparison_metrics.csv` contains the exact values used in the three charts.
 - `Images/model_comparison_metrics.json` and `Images/model_comparison_metrics.csv` remain as the source comparison outputs.
 - `Images/precision_pipeline_metrics.json` still contains the case-by-case precision pipeline output.
+Additional Purav branch artifacts (for generation-phase reference):
+- ![Purav system summary](Images/purav_generation_system_metrics_summary.png)
+- ![Purav citation recall](Images/purav_generation_citation_recall_comparison.png)
+- ![Purav tool-policy comparison](Images/purav_tool_policy_model_comparison.png)
 
 If you want, I can also trim the older chart files from the repo so only these cleaned visuals remain.
 
