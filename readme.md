@@ -661,9 +661,6 @@ python scripts/run_generation_langgraph_demo.py
 `best_generation_model.json` is the selected Stage 6 model for deployment.
 Winner: **Mistral-7B-Instruct-v0.2 (LoRA fine-tuned)**. Final score: **0.8747**.
 
-### Final Evaluation Dashboard (All Plots)
-
-![Stage 6 Generation Dashboard](assets/generation_all_plots_grid.png)
 
 ---
 
