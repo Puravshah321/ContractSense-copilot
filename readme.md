@@ -32,18 +32,18 @@ ContractSense is an enterprise contract-analysis system for turning legal clause
 
 ## Table of Contents
 
-1. [What We Built](#what-we-built)
-2. [Dataset and Ingestion (Raw → Clauses)](#dataset-and-ingestion-raw--clauses)
-3. [Knowledge Base Build (Clauses → Vectors → Index)](#knowledge-base-build-clauses--vectors--index)
-4. [Retriever to Reranker Flow](#retriever-to-reranker-flow)
-5. [Current Status](#current-status)
-6. [Models Used](#models-used)
-7. [Results](#results)
-8. [Plots and Artifacts](#plots-and-artifacts)
-9. [Why These Results Matter](#why-these-results-matter)
-10. [Why This Is Not Overfitting](#why-this-is-not-overfitting)
-11. [Baseline vs. Our System — Metrics](#baseline-vs-our-system--metrics)
-12. [System Architecture](#system-architecture)
+1. [System Architecture](#system-architecture)
+2. [What We Built](#what-we-built)
+3. [Dataset and Ingestion (Raw → Clauses)](#dataset-and-ingestion-raw--clauses)
+4. [Knowledge Base Build (Clauses → Vectors → Index)](#knowledge-base-build-clauses--vectors--index)
+5. [Retriever to Reranker Flow](#retriever-to-reranker-flow)
+6. [Current Status](#current-status)
+7. [Models Used](#models-used)
+8. [Results](#results)
+9. [Plots and Artifacts](#plots-and-artifacts)
+10. [Why These Results Matter](#why-these-results-matter)
+11. [Why This Is Not Overfitting](#why-this-is-not-overfitting)
+12. [Baseline vs. Our System — Metrics](#baseline-vs-our-system--metrics)
 13. [Repository Map](#repository-map)
 14. [What Remains](#what-remains)
 15. [How to Run From Jupyter](#how-to-run-from-jupyter)
@@ -60,6 +60,12 @@ ContractSense is an enterprise contract-analysis system for turning legal clause
     - [Final Three-Way Comparison](#final-three-way-comparison-baseline-vs-generator-vs-dpo)
     - [DPO Source Files](#dpo-source-files)
     - [How to Run DPO](#how-to-run-dpo)
+
+---
+
+## System Architecture
+
+![ContractSense System Architecture](assets/contractsensearchitecture.jpeg)
 
 ---
 
@@ -370,12 +376,6 @@ Baseline = BM25-only retrieval baseline.
 | Stage 6 LoRA SFT (Mistral-7B) | ~9 GB | ~2–4h per model on T4 |
 | Stage 7 DPO (v4) | ~6 GB (4-bit) | ~3 epochs, eff. batch 32 |
 | Total Training Budget | — | ~12–16 hours on 1x T4 |
-
----
-
-## System Architecture
-
-![ContractSense System Architecture](assets/contractsensearchitecture.jpeg)
 
 ---
 
