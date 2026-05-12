@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "pptx": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/pptx/SKILL.md",
+      "computedHash": "2275e4d8dba1790d52f6619b3e2fed04edc948beef545a2ad18e4a1be644426d"
+    },
+    "research-paper-writer": {
+      "source": "ailabs-393/ai-labs-claude-skills",
+      "sourceType": "github",
+      "skillPath": "packages/skills/research-paper-writer/SKILL.md",
+      "computedHash": "d91e792b4946cc65014786e0032e8a63e0eaee17cd3c2fc5bc392d6fcb3a1cd6"
+    }
+  }
+}

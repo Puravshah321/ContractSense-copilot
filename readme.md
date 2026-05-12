@@ -21,10 +21,10 @@ ContractSense is an enterprise contract-analysis system for turning legal clause
 
 | Member | Roll Number |
 |---|---|
-| Sanjana Nathani | 202518003 |
+| Sanjana Nathani | 202518002 |
 | Purav Shah | 202518020 |
 | Jay Salot | 202518029 |
-| Mahek Khurdia | 202518039 |
+| Mahak Khurdia | 202518039 |
 
 > **HF Model (DPO):** [22Jay/ContractSense-Grounded-DPO](https://huggingface.co/22Jay/ContractSense-Grounded-DPO)
 
@@ -375,64 +375,7 @@ Baseline = BM25-only retrieval baseline.
 
 ## System Architecture
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│  INPUT: User Query + Contract PDF + Chat History        │
-└────────────────────────┬────────────────────────────────┘
-                         │
-             ┌───────────▼───────────┐
-             │  STAGE 1: INGESTION   │
-             │  PDF / text parsing    │
-             │  Clause segmentation   │
-             │  Clause JSONL output   │
-             └───────────┬───────────┘
-                         │
-             ┌───────────▼───────────┐
-             │  STAGE 2: RETRIEVAL   │
-             │  Dense embeddings      │
-             │  all-MiniLM-L6-v2      │
-             │  BM25 lexical baseline │
-             └───────────┬───────────┘
-                         │
-             ┌───────────▼───────────┐
-             │  STAGE 3: RERANKING   │
-             │  cross-encoder         │
-             │  MiniLM reranker       │
-             └───────────┬───────────┘
-                         │
-             ┌───────────▼───────────┐
-             │  STAGE 4: TOOL POLICY │
-             │  DistilBERT classifier │
-             │  Tool selection logic  │
-             └───────────┬───────────┘
-                         │
-    ┌────────────────────▼────────────────────┐
-    │         STAGE 5: TOOL EXECUTION          │
-    │  SearchContract | GetClauseRiskProfile   │
-    │  CompareClause  | CreateTicket           │
-    └────────────────────┬────────────────────┘
-                         │
-             ┌───────────▼───────────┐
-             │  STAGE 6: GENERATION  │
-             │  LangGraph + LoRA SFT │
-             │  Mistral-7B-Instruct   │
-             │  Citation-first JSON   │
-             └───────────┬───────────┘
-                         │
-             ┌───────────▼───────────┐
-             │  STAGE 7: DPO ALIGN   │
-             │  TRL DPOTrainer        │
-             │  Preference pairs v4   │
-             │  100% Grounding        │
-             └───────────┬───────────┘
-                         │
-    ┌────────────────────▼────────────────────┐
-    │  FINAL OUTPUT: Grounded Legal Response  │
-    │  {risk_level, plain_explanation,        │
-    │   key_obligation, recommended_action,   │
-    │   citation}                             │
-    └─────────────────────────────────────────┘
-```
+![ContractSense System Architecture](assets/contractsensearchitecture.jpeg)
 
 ---
 
@@ -574,7 +517,7 @@ Supporting files: [data/processed/generation_benchmark/best_generation_model.jso
   └──────────────────────────────────┘
 ```
 
-![LangGraph Generation Pipeline](assets/generation_langgraph_diagram.png)
+![LangGraph Generation Pipeline](assets/generation_langgraph_diagram.jpeg)
 
 ---
 
