@@ -1,0 +1,9 @@
+{
+  "total_samples": 48,
+  "decision_accuracy": 0.8125,
+  "hallucination_catch_rate": 0.4,
+  "refusal_accuracy": 0.9286,
+  "grounding_accuracy": 1.0,
+  "adversarial_robustness": 0.0,
+  "multihop_completeness": 1.0
+}
