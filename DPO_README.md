@@ -43,7 +43,7 @@ DPO teaches the model what good looks like (chosen) and what bad looks like (rej
 
 ## DPO Pipeline Architecture
 
-![DPO Pipeline Architecture](Images/dpo_pipeline_architecture.png)
+![DPO Pipeline Architecture](Images/Architecture.jpeg)
 
 ### Core Flow
 
