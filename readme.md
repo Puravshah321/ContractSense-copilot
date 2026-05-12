@@ -1,62 +1,154 @@
-# ContractSense: DPO Alignment (Direct Preference Optimization)
+---
+title: ContractSense-copilot
+---
 
-## Overview
-This branch encapsulates the **Stage 7** Direct Preference Optimization (DPO) pipeline for ContractSense. Our primary objective was to align our generative LLM (`Mistral-7B-Instruct-v0.2 + LoRA`) to output highly structured, human-centric legal analysis. 
+# ContractSense
 
-Rather than standard conversational responses, the aligned model is strictly trained to enforce a standardized schema:
-1. **Risk Salience** (Identifying LOW/MEDIUM/HIGH/CRITICAL risk).
-2. **Plain Explanation** (Zero-jargon summarization).
-3. **Actionability** (Explicit next steps or recommendations).
-4. **Citation Validation** (Extracting precise textual spans).
+Consolidated project README combining dataset description, usage, models, training, and references.
+
+## Table of contents
+- Project overview
+- Dataset
+- Installation
+- Quick start / Running the demo
+- Models (model cards)
+- Training & evaluation
+- Files of interest
+- Contributing & license
+
+## Project overview
+
+This repository contains code, data, notebooks and models for ContractSense — a contract understanding and generation project with retrieval, reranking, and generation pipelines, plus DPO-aligned models and training scripts.
+
+Key folders:
+- `app/` — demo application and example data.
+- `data/` — raw and processed datasets used across experiments.
+- `src/` — project source (alignment, generation, ingestion, pipeline, etc.).
+- `grounded_dpo_model/` — DPO datasets and related artifacts.
+- `notebooks/` — exploratory and training notebooks.
+
+## Dataset
+
+Datasets used and produced are under `data/` and `grounded_dpo_model/`.
+
+- Processed examples (examples):
+  - `data/processed/clauses.jsonl` — clause-level JSONL lines used to build embeddings and retrieval indices.
+  - `data/processed/clause_embeddings.npy` — precomputed clause embeddings.
+  - `data/processed/generation_train.jsonl` and `generation_eval.jsonl` — generation training/eval data.
+  - `data/processed/sample_contract_texts.jsonl` — sample documents.
+
+- Raw sources:
+  - `data/raw/` — original datasets (CUAD or others) used for ingestion.
+
+- DPO datasets:
+  - `grounded_dpo_model/dpo_dataset_v2.json` (and v3/v4) — preference / DPO datasets used for Direct Preference Optimization training and evaluation.
+
+If you need a Dataset Card or more metadata, check `data/processed/` and the `scripts/` that build dataset artifacts (e.g., `scripts/dpo_dataset_*.py`).
+
+## Installation
+
+Recommended: use a Python virtual environment and install requirements.
+
+Windows PowerShell example:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Or with the bundled virtualenv `contractsense_env312` use its `activate` in `contractsense_env312/Scripts/`.
+
+## Quick start / Running the demo
+
+- Demo app entry: `app/main_app.py` — runs the demo interface.
+- Demo data helper: `app/demo_data.py`.
+
+Example to run the demo (after venv and deps installed):
+
+```powershell
+python app/main_app.py
+```
+
+Scripts of interest (examples):
+- `scripts/train_generation_models.py` — training generation models
+- `scripts/train_dpo.py` / `lightning_train_*.py` — training DPO / Lightning jobs
+- `scripts/serve_dpo_api.py` — serve a local API for model inference
+
+## Models (included model cards)
+
+This repo contains model card README files under `src/alignment/models/dpo_aligned_model/` and its checkpoints. Key consolidated details:
+
+Model: `dpo_aligned_model` (fine-tuned from `mistralai/Mistral-7B-Instruct-v0.2`)
+
+Quick-start example (text-generation pipeline):
+
+```python
+from transformers import pipeline
+question = "If you had a time machine, but could only go to the past or the future once and never return, which would you choose and why?"
+generator = pipeline("text-generation", model="<path-or-hf-id>", device="cuda")
+output = generator([{"role": "user", "content": question}], max_new_tokens=128, return_full_text=False)[0]
+print(output["generated_text"])
+```
+
+Training notes (from model card):
+- Trained with Direct Preference Optimization (DPO) using the TRL framework.
+- Key frameworks / versions referenced:
+  - PEFT 0.19.1
+  - TRL 1.2.0
+  - Transformers 5.5.4
+  - PyTorch 2.8.0+cu128
+  - Datasets 4.8.4
+
+Citations (from model card):
+
+Direct Preference Optimization:
+
+```bibtex
+@inproceedings{rafailov2023direct,
+    title        = {{Direct Preference Optimization: Your Language Model is Secretly a Reward Model}},
+    author       = {Rafael Rafailov and Archit Sharma and Eric Mitchell and Christopher D. Manning and Stefano Ermon and Chelsea Finn},
+    year         = 2023,
+    booktitle    = {NeurIPS 2023},
+}
+```
+
+TRL citation (software):
+
+```bibtex
+@software{vonwerra2020trl,
+  title   = {{TRL: Transformers Reinforcement Learning}},
+  author  = {von Werra, Leandro and Belkada, Younes and Tunstall, Lewis and Beeching, Edward and Thrush, Tristan and Lambert, Nathan and Huang, Shengyi and Rasul, Kashif and Gallouédec, Quentin},
+  license = {Apache-2.0},
+  url     = {https://github.com/huggingface/trl},
+  year    = {2020}
+}
+```
+
+Note: there are checkpoint-specific README placeholders at `src/alignment/models/dpo_aligned_model/checkpoint-*/README.md` with additional (mostly placeholder) model metadata.
+
+## Training & evaluation
+
+- Training scripts live under `scripts/` (see `lightning_train_*.py`, `train_dpo.py`, `train_generation_models.py`).
+- Evaluation and benchmarking utilities: `scripts/evaluate_model_comparison.py`, `scripts/evaluate_precision_pipeline.py`.
+- Notebooks in `notebooks/` provide step-throughs for knowledge base builds, reranker/model comparison, DPO alignment and generation-phase experiments.
+
+## Files of interest
+- `requirements.txt`, `requirements_training.txt`, `requirements_pipeline.txt` — dependency lists.
+- `test_dpo_model.py` — small tests for the DPO model.
+- `Images/` — figures and metrics JSON/CSV used for reports.
+
+## Contributing
+
+If you add new README content in subfolders, please also update this top-level `README.md` to keep documentation centralized.
+
+## License & credits
+
+Check project root for license information. Also many components reference model licenses (e.g., base model license) — verify before redistribution.
 
 ---
 
-## 🚀 What We Did (The Pipeline)
-
-1. **DPO Pair Construction**: 
-   We converted the raw, unaligned generator text into explicit `chosen` (perfectly formatted) versus `rejected` (dense, unformatted language) pairings.
-2. **Cloud Scalability**: 
-   We migrated the execution suite to **Lightning AI Studio** running an **NVIDIA L4 GPU (24GB VRAM)**. To maximize efficiency, we engineered the environment for batch-density throughput and switched to pure `bfloat16` with native PyTorch Scaled Dot-Product Attention (SDPA).
-3. **TRL Model Optimization**: 
-   We leveraged the HuggingFace `trl` (`DPOTrainer`) library natively. The DPO pipeline optimized our custom adapter weights purely based on preference margins, achieving extremely stable convergence with a final loss of `0.0064` in just under an hour.
-
----
-
-## 📊 Alignment Success & Stage 6 Comparison
-
-We benchmarked the DPO-aligned model directly against our **Stage 6 Winner** (`Mistral-7B-Instruct-v0.2 + LoRA SFT`). While Stage 6 had already achieved excellent structured output, DPO provided the final algorithmic push needed to achieve near-perfect structural reliability and completely eliminate outlier generation failures.
-
-| Feature Dimension | Stage 6 Winner (LoRA SFT) | Stage 7 Winner (DPO Aligned) | Absolute Improvement |
-| :--- | :---: | :---: | :---: |
-| **Overall Quality** | 0.877 | 0.982 | **+10.5%** |
-| **Actionability** | 0.925 | 1.000 | **+7.5%** |
-| **Risk Salience** | 0.875 | 1.000 | **+12.5%** |
-| **Format Compliance** | 0.958 | 1.000 | **+4.2%** |
-
-### Failure Analysis / Outlier Elimination
-While Stage 6 was highly accurate, it still occasionally dropped JSON keys or forgot to pull exact citations in edge-case documents. DPO strictly penalized these behaviors, completely eliminating unformatted edge cases in the holdout evaluations.
-
-| Error Type | Stage 6 Edge Cases | DPO Occurrences | Verdict |
-| :--- | :---: | :---: | :--- |
-| `no_action` | Occasional | **0** | Eliminated |
-| `missing_citation` | Occasional | **0** | Eliminated |
-| `missing_risk_label` | Occasional | **0** | Eliminated |
-
----
-
-## 🖼️ Dashboard & Artifacts
-
-All training artifacts, multi-model comparisons, and failure heatmaps have been successfully pushed to the repository.
-
-1. **Performance Jump (LoRA vs DPO)**: Shows the massive absolute improvement pushed by DPO using our verified SFT LoRA benchmark. (`Images/true_metrics_comparison.png`)
-2. **Error Elimination**: Demonstration of how DPO takes the handful of formatting errors that still existed in Stage 6 and completely zeros them out (`Images/true_error_elimination.png`).
-3. **Training Curves**: Reward margin verification confirming proper convergence (`Images/training_curves.png`).
-
----
-
-## 🔮 What's Next (Deployment)
-
-Now that the generative AI "brain" is completely constructed, optimized, and strictly aligned to our custom schema, the execution moves formally to Interface Integration.
-
-1. **End-to-End Orchestrator**: Connect the Retrieval stack -> Reranker -> Policy Agent -> DPO Generator into a single unified Python workflow.
-2. **User Interface Construction**: Build the frontend application (Streamlit or React + FastAPI) allowing users to directly upload external PDFs and chat with the ContractSense Legal Copilot.
+If you'd like, I can:
+- expand any section with more detail pulled from specific notebooks or scripts,
+- include inlined screenshots/images referenced by the sub-READMEs (I found no image links in the READMEs read),
+- commit this `README.md` to git.
