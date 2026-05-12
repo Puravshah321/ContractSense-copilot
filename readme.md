@@ -37,17 +37,15 @@ ContractSense is an enterprise contract-analysis system for turning legal clause
 3. [Dataset and Ingestion (Raw → Clauses)](#dataset-and-ingestion-raw--clauses)
 4. [Knowledge Base Build (Clauses → Vectors → Index)](#knowledge-base-build-clauses--vectors--index)
 5. [Retriever to Reranker Flow](#retriever-to-reranker-flow)
-6. [Current Status](#current-status)
-7. [Models Used](#models-used)
-8. [Results](#results)
-9. [Plots and Artifacts](#plots-and-artifacts)
-10. [Why These Results Matter](#why-these-results-matter)
-11. [Why This Is Not Overfitting](#why-this-is-not-overfitting)
-12. [Baseline vs. Our System — Metrics](#baseline-vs-our-system--metrics)
-13. [Final Conclusion](#final-conclusion)
-14. [Stage 6: Generation Phase — Comprehensive Results](#stage-6-generation-phase--comprehensive-results)
-15. [Stage 7: DPO Alignment Phase](#stage-7-dpo-alignment-phase)
-16. [Repository Map](#repository-map)
+6. [Models Used](#models-used)
+7. [Results](#results)
+8. [Plots and Artifacts](#plots-and-artifacts)
+9. [Why These Results Matter](#why-these-results-matter)
+10. [Why This Is Not Overfitting](#why-this-is-not-overfitting)
+11. [Baseline vs. Our System — Metrics](#baseline-vs-our-system--metrics)
+12. [Final Conclusion](#final-conclusion)
+13. [Stage 6: Generation Phase — Comprehensive Results](#stage-6-generation-phase--comprehensive-results)
+14. [Stage 7: DPO Alignment Phase](#stage-7-dpo-alignment-phase)
     - [What is DPO and Why We Used It](#what-is-dpo-and-why-we-used-it)
     - [DPO Pipeline Architecture](#dpo-pipeline-architecture)
     - [Dataset Versions v1 → v4](#dataset-versions-v1--v4)
@@ -58,6 +56,8 @@ ContractSense is an enterprise contract-analysis system for turning legal clause
     - [Final Three-Way Comparison](#final-three-way-comparison-baseline-vs-generator-vs-dpo)
     - [DPO Source Files](#dpo-source-files)
     - [How to Run DPO](#how-to-run-dpo)
+15. [Repository Map](#repository-map)
+16. [Team Division of Work](#team-division-of-work)
 
 ---
 
@@ -200,23 +200,6 @@ This dense retriever + cross-encoder reranker composition is the core of the cur
 
 ---
 
-## Current Status
-
-Seven stages are implemented across the pipeline.
-
-| Stage | What is implemented | Main file(s) | Output artifact |
-|---|---|---|---|
-| Clause ingestion | Segment contract text into clause records | [src/ingestion/clause_segmenter.py](src/ingestion/clause_segmenter.py) | [data/processed/clauses.jsonl](data/processed/clauses.jsonl) |
-| Dense retrieval | Encode clauses into vectors | [src/retrieval/embedder.py](src/retrieval/embedder.py) | [data/processed/clause_embeddings.npy](data/processed/clause_embeddings.npy) |
-| Sparse retrieval | BM25 lexical baseline | [src/retrieval/bm25_retriever.py](src/retrieval/bm25_retriever.py) | Baseline retriever object |
-| Reranking | Cross-encoder clause reranking | [src/reranking/reranker.py](src/reranking/reranker.py) | [data/processed/reranker_model](data/processed/reranker_model) |
-| Benchmarking | Retrieval and reranker comparison | [notebooks/03_reranker_and_model_comparison.ipynb](notebooks/03_reranker_and_model_comparison.ipynb) | [data/processed/comparison_outputs](data/processed/comparison_outputs) |
-| Tool policy | Four-way tool selection classifier | [src/policy/tool_policy_model.py](src/policy/tool_policy_model.py) | [data/processed/tool_policy_model](data/processed/tool_policy_model) |
-| Tool-policy benchmark | Grouped contract split and model comparison | [scripts/train_tool_policy_model.py](scripts/train_tool_policy_model.py) | [data/processed/tool_policy_benchmark_realistic_final/model_comparison.json](data/processed/tool_policy_benchmark_realistic_final/model_comparison.json) |
-| **Stage 6: Generation** | **LangChain + LangGraph + LoRA SFT — winner: mistralai/Mistral-7B-Instruct-v0.2 + LoRA** | [src/generation/](src/generation), [notebooks/05_generation_phase_langgraph.ipynb](notebooks/05_generation_phase_langgraph.ipynb) | [data/processed/generation_benchmark/best_generation_model.json](data/processed/generation_benchmark/best_generation_model.json) |
-| **Stage 7: DPO Alignment** | **TRL DPOTrainer + PEFT LoRA preference alignment — 4 dataset versions, winner: v4** | [scripts/lightning_train_v4.py](scripts/lightning_train_v4.py), [src/alignment/](src/alignment) | `DPO_v4/final/`, [HF Hub](https://huggingface.co/22Jay/ContractSense-Grounded-DPO) |
-
----
 
 ## Models Used
 
@@ -348,15 +331,6 @@ Careful split design and model selection were applied throughout:
 
 Baseline = BM25-only retrieval baseline.
 
-### Team Division of Work
-
-| Member | Responsibility | Files |
-|---|---|---|
-| Sanjana Nathani | Data pipeline + Retriever fine-tuning + FAISS index | [src/ingestion/](src/ingestion), [src/retrieval/](src/retrieval), [data/](data) |
-| Purav Shah | Stage 6 Generation — LoRA SFT, LangGraph, model benchmarking | [src/generation/](src/generation), [notebooks/05_generation_phase_langgraph.ipynb](notebooks/05_generation_phase_langgraph.ipynb) |
-| Jay Salot | Stage 7 DPO Alignment — preference dataset, DPO training, HF Hub | [scripts/lightning_train_v*.py](scripts/), [src/alignment/](src/alignment) |
-| Mahek Khurdia | Tools + reranker + evaluation framework + FastAPI demo | [src/tools/](src/tools), [src/reranking/](src/reranking), [src/evaluation/](src/evaluation), [src/serving/](src/serving) |
-
 ### Datasets Reference
 
 | Dataset | Size | Use in This Project | Link |
@@ -420,34 +394,7 @@ Supporting files: [data/processed/generation_benchmark/best_generation_model.jso
 
 ### Stage 6 Architecture (LangGraph)
 
-```
-  INPUT: Query + Clauses + Tool Results + Chat History
-          │
-  ┌───────▼────────┐
-  │ prepare_prompt │  ← LangGraph Node 1
-  │ Citation-first │     Builds structured JSON prompt with
-  │ system prompt  │     clause metadata and SYSTEM_PROMPT
-  └───────┬────────┘
-          │ prompt
-  ┌───────▼────────┐
-  │    generate    │  ← LangGraph Node 2
-  │ HuggingFace    │     Winner model loaded with LoRA adapter
-  │ Pipeline LLM   │     via LangChain HuggingFacePipeline
-  └───────┬────────┘
-          │ raw_output
-  ┌───────▼────────┐
-  │    validate    │  ← LangGraph Node 3
-  │ JSON parse +   │     Extracts structured JSON, applies
-  │ fallback logic │     safe fallback on parse failure
-  └───────┬────────┘
-          │
-  ┌───────▼──────────────────────────┐
-  │ Structured Output               │
-  │ {risk_level, plain_explanation, │
-  │  key_obligation, recommended_   │
-  │  action, citation}              │
-  └──────────────────────────────────┘
-```
+
 
 ![LangGraph Generation Pipeline](assets/generation_langgraph_diagram.jpeg)
 
@@ -1149,6 +1096,17 @@ The most important files in the current repo are:
 - [src/generation/](src/generation) for Stage 6 generation modules (LangGraph, LoRA SFT).
 - [scripts/lightning_train_v4.py](scripts/lightning_train_v4.py) for Stage 7 DPO production training.
 - [src/alignment/](src/alignment) for DPO evaluation and model artifacts.
+
+---
+
+## Team Division of Work
+
+| Member | Responsibility | Files |
+|---|---|---|
+| Sanjana Nathani | Data pipeline + Retriever fine-tuning + FAISS index | [src/ingestion/](src/ingestion), [src/retrieval/](src/retrieval), [data/](data) |
+| Purav Shah | Stage 6 Generation — LoRA SFT, LangGraph, model benchmarking | [src/generation/](src/generation), [notebooks/05_generation_phase_langgraph.ipynb](notebooks/05_generation_phase_langgraph.ipynb) |
+| Jay Salot | Stage 7 DPO Alignment — preference dataset, DPO training, HF Hub | [scripts/lightning_train_v*.py](scripts/), [src/alignment/](src/alignment) |
+| Mahek Khurdia | Tools + reranker + evaluation framework + FastAPI demo | [src/tools/](src/tools), [src/reranking/](src/reranking), [src/evaluation/](src/evaluation), [src/serving/](src/serving) |
 
 ---
 
