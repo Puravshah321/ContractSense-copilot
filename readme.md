@@ -606,7 +606,7 @@ DAU, Gandhinagar
 
 ---
 
-# 📖 Research Areas Explored
+# Research Areas Explored
 
 - Retrieval-Augmented Generation (RAG)
 - Legal NLP
@@ -618,7 +618,7 @@ DAU, Gandhinagar
 
 ---
 
-# 🏁 Conclusion
+# Conclusion
 
 ContractSense Copilot is not designed to be just another legal chatbot.
 
