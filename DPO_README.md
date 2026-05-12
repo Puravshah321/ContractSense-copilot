@@ -43,7 +43,7 @@ DPO teaches the model what good looks like (chosen) and what bad looks like (rej
 
 ## DPO Pipeline Architecture
 
-![DPO Pipeline Architecture](Images/Architecture.jpeg)
+![DPO Pipeline Architecture](./Images/Architecture.jpeg)
 
 ### Core Flow
 
@@ -76,7 +76,7 @@ Where `π_ref` is the frozen LoRA generator from Stage 6 (Purav branch).
 
 ## Dataset Versions v1 → v4
 
-![DPO Dataset Evolution](Images/dpo_dataset_evolution.png)
+![DPO Dataset Evolution](./Images/dpo_dataset_evolution.png)
 
 Each version was a deliberate iteration to close gaps from the previous one.
 
@@ -212,7 +212,7 @@ target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
 
 ## Training Configuration Per Version
 
-![Training Hyperparameter Heatmap](Images/dpo_config_heatmap.png)
+![Training Hyperparameter Heatmap](./Images/dpo_config_heatmap.png)
 
 | Config | v1 | v2 | v3 | v4 |
 |---|---|---|---|---|
@@ -234,7 +234,7 @@ target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
 
 ### v4 Holdout Evaluation (48 samples)
 
-![DPO v4 Evaluation Results](Images/dpo_v4_eval_results.png)
+![DPO v4 Evaluation Results](./Images/dpo_v4_eval_results.png)
 
 | Metric | v4 Score |
 |---|---:|
@@ -247,7 +247,7 @@ target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
 
 ### Quality Metrics — Baseline vs LoRA SFT vs DPO
 
-![DPO Quality Metrics](Images/dpo_quality_metrics.png)
+![DPO Quality Metrics](./Images/dpo_quality_metrics.png)
 
 | Metric | BM25 Baseline | LoRA SFT (Generator) | DPO Aligned (v4) | DPO Delta (vs BM25) |
 |---|---:|---:|---:|---:|
@@ -261,11 +261,11 @@ target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
 
 ### Quality Radar Chart
 
-![DPO Quality Radar](Images/dpo_quality_radar.png)
+![DPO Quality Radar](./Images/dpo_quality_radar.png)
 
 ### Improvement Delta over Baseline
 
-![DPO Improvement Delta](Images/dpo_improvement_delta.png)
+![DPO Improvement Delta](./Images/dpo_improvement_delta.png)
 
 ---
 
@@ -296,7 +296,7 @@ target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
 
 ## Final Three-Way Comparison: Baseline vs Generator vs DPO
 
-![Three-Way Comparison](Images/dpo_three_way_comparison.png)
+![Three-Way Comparison](./Images/dpo_three_way_comparison.png)
 
 ### System Descriptions
 
