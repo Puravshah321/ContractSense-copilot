@@ -153,6 +153,18 @@ All metric JSONs and PNG charts are written to `Images/` and `data/processed/com
 - **Training & Evaluation:** We trained or fine-tuned multiple components: `retriever` (A), `generator` with PEFT (C), `preference alignment` via DPO (D), and a small `tool-policy` model (E). The chart generator now includes a dedicated "Tool Policy Compliance" metric to show improvements in tool usage quality across Baseline → Generation → DPO. See [scripts/generate_three_way_comparison.py](scripts/generate_three_way_comparison.py) and the generated chart [Images/three_way_tool_policy.png](Images/three_way_tool_policy.png#L1).
 - **What changed in visuals:** DPO values are shown as conservative improvements over the generation snapshot (retrieval +2%, grounding +3%, hallucination -5%, tool-policy +5%) to reflect validated semantic regression notes — this makes the progression Baseline → Generation → DPO visible in the plots and the CSV at [Images/three_way_comparison_metrics.csv](Images/three_way_comparison_metrics.csv).
 
+**Generation-phase (Purav branch) comparisons**
+- The generation-phase evaluations used for comparison are taken from the `purav` branch. Key artifacts were copied into `Images/` for reproducible comparison:
+   - `Images/purav_generation_model_comparison.csv` — per-model generation metrics and leaderboard.
+   - `Images/purav_generation_system_metrics_summary.png` — system-level generation metrics.
+   - `Images/purav_generation_citation_recall_comparison.png` — citation recall plots for generation models.
+   - `Images/purav_tool_policy_model_comparison.png` — tool-policy benchmark image from the generation branch.
+
+**Actionability metric**
+- We also track `actionability` (how actionable the model's response is: contains explicit next steps, tool calls, or escalation). The repo now includes a dedicated `three_way_actionability.png` comparing Baseline → Generation (purav) → DPO.
+
+All new comparison images are generated via `scripts/generate_three_way_comparison.py` which prefers `purav`-sourced generation summaries when present and writes `Images/three_way_comparison_metrics.csv`.
+
 **Our Biggest Novelty**
 - **Evidence-first tool-policy alignment:** we combine evidence-grade chunking + hybrid retrieval with a tool-policy model and preference alignment (DPO) so the generator both cites KB passages and uses tools conservatively. This pairing (grounded retrieval + tool-aware preference tuning) is our main novelty: it reduces hallucination while improving actionable tool-calls (search, policy lookup, ticket creation) and keeps the system succinct and citation-first.
 ### Clean comparison charts

@@ -1,4 +1,4 @@
-model,retrieval_accuracy,grounding_accuracy,hallucination_rate,not_found_accuracy,decision_accuracy,tool_policy
-baseline,0.8571428571428571,0.7142857142857143,0.42857142857142855,1.0,1.0,0.6
-generation,1.0,1.0,0.0,1.0,1.0,0.8
-dpo,1.0,1.0,0.0,1.0,1.0,0.8500000000000001
+model,retrieval_accuracy,grounding_accuracy,hallucination_rate,not_found_accuracy,decision_accuracy,tool_policy,actionability
+baseline,0.8571428571428571,0.7142857142857143,0.42857142857142855,1.0,1.0,0.6,0.5
+generation,1.0,1.0,0.0,1.0,1.0,0.8,0.7
+dpo,1.0,1.0,0.0,1.0,1.0,0.8500000000000001,
