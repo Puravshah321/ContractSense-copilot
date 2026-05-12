@@ -44,12 +44,10 @@ ContractSense is an enterprise contract-analysis system for turning legal clause
 10. [Why These Results Matter](#why-these-results-matter)
 11. [Why This Is Not Overfitting](#why-this-is-not-overfitting)
 12. [Baseline vs. Our System — Metrics](#baseline-vs-our-system--metrics)
-13. [Repository Map](#repository-map)
-14. [What Remains](#what-remains)
-15. [How to Run From Jupyter](#how-to-run-from-jupyter)
-16. [Final Conclusion](#final-conclusion)
-17. [Stage 6: Generation Phase — Comprehensive Results](#stage-6-generation-phase--comprehensive-results)
-18. [Stage 7: DPO Alignment Phase](#stage-7-dpo-alignment-phase)
+13. [Final Conclusion](#final-conclusion)
+14. [Stage 6: Generation Phase — Comprehensive Results](#stage-6-generation-phase--comprehensive-results)
+15. [Stage 7: DPO Alignment Phase](#stage-7-dpo-alignment-phase)
+16. [Repository Map](#repository-map)
     - [What is DPO and Why We Used It](#what-is-dpo-and-why-we-used-it)
     - [DPO Pipeline Architecture](#dpo-pipeline-architecture)
     - [Dataset Versions v1 → v4](#dataset-versions-v1--v4)
@@ -379,72 +377,6 @@ Baseline = BM25-only retrieval baseline.
 
 ---
 
-## Repository Map
-
-The most important files in the current repo are:
-
-- [src/ingestion/clause_segmenter.py](src/ingestion/clause_segmenter.py) for turning CUAD contract text into clause records.
-- [src/retrieval/embedder.py](src/retrieval/embedder.py) for dense clause embeddings.
-- [src/retrieval/bm25_retriever.py](src/retrieval/bm25_retriever.py) for the sparse baseline.
-- [src/reranking/reranker.py](src/reranking/reranker.py) for cross-encoder reranking.
-- [src/reranking/train_reranker.py](src/reranking/train_reranker.py) for reranker training.
-- [src/policy/tool_policy_model.py](src/policy/tool_policy_model.py) for tool-policy dataset generation, training, and benchmarking.
-- [scripts/train_tool_policy_model.py](scripts/train_tool_policy_model.py) for the end-to-end tool-policy run.
-- [notebooks/03_reranker_and_model_comparison.ipynb](notebooks/03_reranker_and_model_comparison.ipynb) for the retrieval comparison notebook.
-- [notebooks/04_tool_policy_model_benchmark.ipynb](notebooks/04_tool_policy_model_benchmark.ipynb) for the tool-policy benchmark notebook.
-- [src/generation/](src/generation) for Stage 6 generation modules (LangGraph, LoRA SFT).
-- [scripts/lightning_train_v4.py](scripts/lightning_train_v4.py) for Stage 7 DPO production training.
-- [src/alignment/](src/alignment) for DPO evaluation and model artifacts.
-
----
-
-## What Remains
-
-The next useful steps are:
-
-1. Build the stricter external reranking holdout and report it separately from the internal comparison.
-2. Expand external holdout evaluation and add richer error analysis for tool-policy predictions.
-3. Add deployment wrappers for retrieval/reranking/tool-policy/DPO inference as needed.
-4. DPO v5: targeted adversarial augmentation to close the adversarial robustness gap (currently 0%).
-
----
-
-## How to Run From Jupyter
-
-If you want to combine everything and get a final generated answer from one notebook cell, use these scripts in this order.
-
-### What each script is useful for
-
-- [scripts/build_reranker_external_holdout.py](scripts/build_reranker_external_holdout.py)
-    Builds strict train/holdout reranker datasets so evaluation is done on unseen contract groups.
-- [scripts/train_tool_policy_model.py](scripts/train_tool_policy_model.py)
-    Builds synthetic policy data from clauses and trains/benchmarks the tool-policy classifier.
-
-### Notebook cells (copy into an ipynb)
-
-```python
-%cd D:/sem 2/DL/project/ContractSense-copilot
-```
-
-```python
-# 1) Build strict external holdout files for reranker experiments
-!python scripts/build_reranker_external_holdout.py \
-    --clauses-path data/processed/clauses.jsonl \
-    --train-out data/processed/reranker_train_external.jsonl \
-    --holdout-out data/processed/reranker_holdout_external.jsonl \
-    --metadata-out data/processed/reranker_external_holdout_metadata.json
-```
-
-```python
-# 2) Train/benchmark tool-policy model
-!python scripts/train_tool_policy_model.py \
-    --clauses-path data/processed/clauses.jsonl \
-    --data-path data/processed/tool_policy_train.jsonl \
-    --benchmark-dir data/processed/tool_policy_benchmark_realistic_final \
-    --split-strategy group_contract
-```
-
----
 
 ## Final Conclusion
 
@@ -764,15 +696,6 @@ python scripts/benchmark_generation_models.py \
 python scripts/run_generation_langgraph_demo.py
 ```
 
-### Run Stage 6 (Notebook Mode)
-
-Open `notebooks/05_generation_phase_langgraph.ipynb` in Jupyter.
-
-- Set `RUN_HEAVY = True` to run real LoRA training (GPU required)
-- Set `RUN_DEMO = True` to run the LangGraph inference demo
-- Leave both `False` to run on CPU using pre-computed synthetic metrics and generate all plots
-
-The notebook has 24 cells covering: setup, data build, synthetic baseline scoring, LoRA training, holdout evaluation, 13 visualization cells, winner selection, LangGraph demo, and FastAPI smoke test.
 
 ### Stage 6 Generated Artifacts
 
@@ -1207,6 +1130,25 @@ python scripts/serve_dpo_api.py
 ```bash
 pip install trl==1.4.0 transformers peft accelerate bitsandbytes datasets torch matplotlib
 ```
+
+---
+
+## Repository Map
+
+The most important files in the current repo are:
+
+- [src/ingestion/clause_segmenter.py](src/ingestion/clause_segmenter.py) for turning CUAD contract text into clause records.
+- [src/retrieval/embedder.py](src/retrieval/embedder.py) for dense clause embeddings.
+- [src/retrieval/bm25_retriever.py](src/retrieval/bm25_retriever.py) for the sparse baseline.
+- [src/reranking/reranker.py](src/reranking/reranker.py) for cross-encoder reranking.
+- [src/reranking/train_reranker.py](src/reranking/train_reranker.py) for reranker training.
+- [src/policy/tool_policy_model.py](src/policy/tool_policy_model.py) for tool-policy dataset generation, training, and benchmarking.
+- [scripts/train_tool_policy_model.py](scripts/train_tool_policy_model.py) for the end-to-end tool-policy run.
+- [notebooks/03_reranker_and_model_comparison.ipynb](notebooks/03_reranker_and_model_comparison.ipynb) for the retrieval comparison notebook.
+- [notebooks/04_tool_policy_model_benchmark.ipynb](notebooks/04_tool_policy_model_benchmark.ipynb) for the tool-policy benchmark notebook.
+- [src/generation/](src/generation) for Stage 6 generation modules (LangGraph, LoRA SFT).
+- [scripts/lightning_train_v4.py](scripts/lightning_train_v4.py) for Stage 7 DPO production training.
+- [src/alignment/](src/alignment) for DPO evaluation and model artifacts.
 
 ---
 
